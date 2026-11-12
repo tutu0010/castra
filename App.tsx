@@ -265,9 +265,12 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: CozyTheme.background,
+    alignItems: 'center',
   },
   container: {
     flex: 1,
+    width: '100%',
+    maxWidth: 540,
     backgroundColor: CozyTheme.background,
   },
   scrollContent: {
