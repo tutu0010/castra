@@ -1,6 +1,7 @@
 export type AccountType = 'bank' | 'wallet';
 export type CardType = 'credit' | 'debit';
 export type TransactionType = 'expense' | 'income' | 'transfer';
+export type DateFilterType = 'all' | 'this_month' | 'last_month' | 'last_30_days';
 
 export interface Account {
   id: string;
@@ -22,10 +23,9 @@ export interface Card {
   color: string;
   last4?: string;
   credit_limit_cents?: number | null;
-  statement_day?: number | null; // e.g. 20th of month
-  due_day?: number | null;       // e.g. 10th of next month
+  statement_day?: number | null;
+  due_day?: number | null;
   created_at: string;
-  // Computed for credit cards
   outstanding_balance_cents?: number;
 }
 
@@ -46,12 +46,26 @@ export interface Transaction {
   category_id?: string | null;
   amount_cents: number;
   currency: string;
-  exchange_rate: number; // multiplier to get base currency
+  exchange_rate: number;
   base_amount_cents: number;
   type: TransactionType;
-  to_account_id?: string | null; // for transfers
+  to_account_id?: string | null;
   date: string;
   note?: string;
+  created_at: string;
+}
+
+export interface RecurringBill {
+  id: string;
+  name: string;
+  amount_cents: number;
+  currency: string;
+  category_id?: string | null;
+  account_id?: string | null;
+  card_id?: string | null;
+  frequency: 'monthly' | 'yearly' | 'weekly';
+  due_day: number; // 1-31
+  is_active: boolean;
   created_at: string;
 }
 
@@ -59,7 +73,7 @@ export interface CurrencyConfig {
   code: string;
   symbol: string;
   name: string;
-  rateToBase: number; // 1 unit of this currency = X base currency
+  rateToBase: number;
 }
 
 export interface DatabaseBackup {
@@ -70,4 +84,5 @@ export interface DatabaseBackup {
   cards: Card[];
   categories: Category[];
   transactions: Transaction[];
+  recurring_bills?: RecurringBill[];
 }

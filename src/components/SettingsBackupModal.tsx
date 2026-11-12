@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -6,6 +6,8 @@ import {
   Modal,
   TouchableOpacity,
   ScrollView,
+  Switch,
+  Platform,
 } from 'react-native';
 import {
   X,
@@ -15,11 +17,14 @@ import {
   Coins,
   Shield,
   CheckCircle2,
+  Fingerprint,
 } from 'lucide-react-native';
 import { CozyTheme } from '../theme/colors';
 import { SUPPORTED_CURRENCIES } from '../utils/currency';
 import { exportCSVFile, exportJSONBackup, pickAndRestoreJSONBackup } from '../utils/backup';
 import { triggerLightHaptic, triggerSuccessHaptic } from '../utils/haptics';
+import { getBiometricsEnabled, setBiometricsEnabled } from '../db/database';
+import { checkBiometricSupport, authenticateBiometrics } from '../utils/biometrics';
 
 interface SettingsBackupModalProps {
   visible: boolean;
@@ -38,6 +43,45 @@ export const SettingsBackupModal: React.FC<SettingsBackupModalProps> = ({
 }) => {
   const [loading, setLoading] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
+  const [biometricsActive, setBiometricsActive] = useState<boolean>(false);
+  const [biometryType, setBiometryType] = useState<string>('Biometrics');
+  const [biometricsAvailable, setBiometricsAvailable] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (visible) {
+      const enabled = getBiometricsEnabled();
+      setBiometricsActive(enabled);
+
+      if (Platform.OS !== 'web') {
+        checkBiometricSupport().then((support) => {
+          setBiometricsAvailable(support.supported && support.enrolled);
+          if (support.biometryType) {
+            setBiometryType(support.biometryType);
+          }
+        });
+      }
+    }
+  }, [visible]);
+
+  const handleToggleBiometrics = async (value: boolean) => {
+    triggerLightHaptic();
+    if (value) {
+      // Prompt user to verify before enabling
+      const success = await authenticateBiometrics(`Enable ${biometryType} lock`);
+      if (success) {
+        setBiometricsEnabled(true);
+        setBiometricsActive(true);
+        triggerSuccessHaptic();
+        setStatusMessage(`${biometryType} lock enabled!`);
+      } else {
+        setStatusMessage('Authentication cancelled');
+      }
+    } else {
+      setBiometricsEnabled(false);
+      setBiometricsActive(false);
+      setStatusMessage('Biometric lock disabled');
+    }
+  };
 
   const handleExportCSV = async () => {
     triggerLightHaptic();
@@ -132,6 +176,34 @@ export const SettingsBackupModal: React.FC<SettingsBackupModalProps> = ({
                 );
               })}
             </View>
+          </View>
+
+          {/* Biometrics App Lock */}
+          <View style={styles.cardSection}>
+            <View style={styles.cardHeaderRow}>
+              <Fingerprint size={16} color={CozyTheme.textPrimary} />
+              <Text style={styles.cardTitle}>App Security</Text>
+            </View>
+            <View style={styles.toggleRow}>
+              <View style={{ flex: 1, paddingRight: 12 }}>
+                <Text style={styles.toggleTitle}>{biometryType} Lock</Text>
+                <Text style={styles.toggleSubtitle}>
+                  Require {biometryType} authentication when opening app
+                </Text>
+              </View>
+              <Switch
+                value={biometricsActive}
+                onValueChange={handleToggleBiometrics}
+                trackColor={{ false: CozyTheme.surfaceElevated, true: CozyTheme.income }}
+                thumbColor="#FFFFFF"
+                disabled={Platform.OS !== 'web' && !biometricsAvailable}
+              />
+            </View>
+            {Platform.OS !== 'web' && !biometricsAvailable && (
+              <Text style={styles.unavailableWarning}>
+                Biometrics not enrolled on this device.
+              </Text>
+            )}
           </View>
 
           {/* Export & Sharing */}
@@ -317,6 +389,28 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: CozyTheme.textSecondary,
     marginTop: 1,
+  },
+  toggleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 6,
+  },
+  toggleTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: CozyTheme.textPrimary,
+  },
+  toggleSubtitle: {
+    fontSize: 12,
+    color: CozyTheme.textSecondary,
+    marginTop: 2,
+    lineHeight: 16,
+  },
+  unavailableWarning: {
+    fontSize: 11,
+    color: CozyTheme.expense,
+    marginTop: 8,
   },
   privacyCard: {
     flexDirection: 'row',

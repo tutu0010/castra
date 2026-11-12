@@ -1,49 +1,53 @@
 import * as SQLite from 'expo-sqlite';
 import { Platform } from 'react-native';
-import { Account, Card, Category, Transaction, DatabaseBackup } from '../types';
+import { Account, Card, Category, Transaction, RecurringBill, DatabaseBackup } from '../types';
 import { convertCurrency } from '../utils/currency';
 
 const now = new Date().toISOString();
 
-// Category presets (kept ready so user can categorize immediately)
+// Category presets
 const DEFAULT_CATEGORIES: Category[] = [
-  { id: 'cat_food', name: 'Dining & Food', icon: 'utensils', color: '#F87171', type: 'expense', monthly_budget_cents: null, created_at: now },
-  { id: 'cat_groceries', name: 'Groceries', icon: 'shopping-cart', color: '#34D399', type: 'expense', monthly_budget_cents: null, created_at: now },
-  { id: 'cat_coffee', name: 'Café & Snacks', icon: 'coffee', color: '#FBBF24', type: 'expense', monthly_budget_cents: null, created_at: now },
-  { id: 'cat_housing', name: 'Rent & Bills', icon: 'home', color: '#60A5FA', type: 'expense', monthly_budget_cents: null, created_at: now },
-  { id: 'cat_transport', name: 'Fuel & Cab', icon: 'car', color: '#A78BFA', type: 'expense', monthly_budget_cents: null, created_at: now },
-  { id: 'cat_shopping', name: 'Shopping', icon: 'shopping-bag', color: '#FB923C', type: 'expense', monthly_budget_cents: null, created_at: now },
-  { id: 'cat_subs', name: 'Subscriptions', icon: 'tv', color: '#756D63', type: 'expense', monthly_budget_cents: null, created_at: now },
+  { id: 'cat_food', name: 'Dining & Food', icon: 'utensils', color: '#F87171', type: 'expense', monthly_budget_cents: 1000000, created_at: now },
+  { id: 'cat_groceries', name: 'Groceries', icon: 'shopping-cart', color: '#34D399', type: 'expense', monthly_budget_cents: 1500000, created_at: now },
+  { id: 'cat_coffee', name: 'Café & Snacks', icon: 'coffee', color: '#FBBF24', type: 'expense', monthly_budget_cents: 300000, created_at: now },
+  { id: 'cat_housing', name: 'Rent & Bills', icon: 'home', color: '#60A5FA', type: 'expense', monthly_budget_cents: 2500000, created_at: now },
+  { id: 'cat_transport', name: 'Fuel & Cab', icon: 'car', color: '#A78BFA', type: 'expense', monthly_budget_cents: 500000, created_at: now },
+  { id: 'cat_shopping', name: 'Shopping', icon: 'shopping-bag', color: '#FB923C', type: 'expense', monthly_budget_cents: 800000, created_at: now },
+  { id: 'cat_subs', name: 'Subscriptions', icon: 'tv', color: '#756D63', type: 'expense', monthly_budget_cents: 200000, created_at: now },
   { id: 'cat_salary', name: 'Salary / Income', icon: 'briefcase', color: '#34D399', type: 'income', monthly_budget_cents: null, created_at: now },
   { id: 'cat_freelance', name: 'Side Hustle', icon: 'laptop', color: '#60A5FA', type: 'income', monthly_budget_cents: null, created_at: now },
 ];
 
-// ZERO MOCK DATA - Clean slate for the user
 const DEFAULT_ACCOUNTS: Account[] = [];
 const DEFAULT_CARDS: Card[] = [];
 const DEFAULT_TRANSACTIONS: Transaction[] = [];
+const DEFAULT_RECURRING: RecurringBill[] = [];
 
 // ----------------------------------------------------
 // WEB STORAGE FALLBACK (LOCAL STORAGE)
 // ----------------------------------------------------
-const WEB_KEY = 'castra_local_store_v2';
+const WEB_KEY = 'castra_local_store_v3';
 
 interface WebStore {
   base_currency: string;
+  biometrics_enabled: boolean;
   accounts: Account[];
   cards: Card[];
   categories: Category[];
   transactions: Transaction[];
+  recurring_bills: RecurringBill[];
 }
 
 function getWebStore(): WebStore {
   if (typeof window === 'undefined' || !window.localStorage) {
     return {
       base_currency: 'INR',
+      biometrics_enabled: false,
       accounts: DEFAULT_ACCOUNTS,
       cards: DEFAULT_CARDS,
       categories: DEFAULT_CATEGORIES,
       transactions: DEFAULT_TRANSACTIONS,
+      recurring_bills: DEFAULT_RECURRING,
     };
   }
 
@@ -51,10 +55,12 @@ function getWebStore(): WebStore {
   if (!raw) {
     const initial: WebStore = {
       base_currency: 'INR',
+      biometrics_enabled: false,
       accounts: DEFAULT_ACCOUNTS,
       cards: DEFAULT_CARDS,
       categories: DEFAULT_CATEGORIES,
       transactions: DEFAULT_TRANSACTIONS,
+      recurring_bills: DEFAULT_RECURRING,
     };
     window.localStorage.setItem(WEB_KEY, JSON.stringify(initial));
     return initial;
@@ -62,17 +68,24 @@ function getWebStore(): WebStore {
 
   try {
     const parsed: WebStore = JSON.parse(raw);
-    parsed.accounts = (parsed.accounts || []).filter(a => !['acc_main_bank', 'acc_savings', 'acc_cash_wallet'].includes(a.id));
-    parsed.cards = (parsed.cards || []).filter(c => !['card_sapphire', 'card_debit'].includes(c.id));
-    parsed.transactions = (parsed.transactions || []).filter(t => !['tx_1', 'tx_2', 'tx_3'].includes(t.id));
-    return parsed;
+    return {
+      base_currency: parsed.base_currency || 'INR',
+      biometrics_enabled: !!parsed.biometrics_enabled,
+      accounts: parsed.accounts || [],
+      cards: parsed.cards || [],
+      categories: parsed.categories && parsed.categories.length > 0 ? parsed.categories : DEFAULT_CATEGORIES,
+      transactions: parsed.transactions || [],
+      recurring_bills: parsed.recurring_bills || [],
+    };
   } catch {
     return {
       base_currency: 'INR',
+      biometrics_enabled: false,
       accounts: DEFAULT_ACCOUNTS,
       cards: DEFAULT_CARDS,
       categories: DEFAULT_CATEGORIES,
       transactions: DEFAULT_TRANSACTIONS,
+      recurring_bills: DEFAULT_RECURRING,
     };
   }
 }
@@ -163,14 +176,26 @@ function initNativeDatabase(db: SQLite.SQLiteDatabase) {
       FOREIGN KEY (card_id) REFERENCES cards(id) ON DELETE SET NULL,
       FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE SET NULL
     );
+
+    CREATE TABLE IF NOT EXISTS recurring_bills (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      amount_cents INTEGER NOT NULL,
+      currency TEXT NOT NULL DEFAULT 'INR',
+      category_id TEXT,
+      account_id TEXT,
+      card_id TEXT,
+      frequency TEXT NOT NULL DEFAULT 'monthly',
+      due_day INTEGER NOT NULL,
+      is_active INTEGER NOT NULL DEFAULT 1,
+      created_at TEXT NOT NULL
+    );
   `);
 
   // Ensure default base currency is INR
   const baseCurr = db.getFirstSync<{ value: string }>('SELECT value FROM settings WHERE key = ?;', ['base_currency']);
   if (!baseCurr) {
     db.runSync('INSERT INTO settings (key, value) VALUES (?, ?);', ['base_currency', 'INR']);
-  } else if (baseCurr.value === 'USD') {
-    db.runSync('UPDATE settings SET value = ? WHERE key = ?;', ['INR', 'base_currency']);
   }
 
   // Ensure categories are seeded if empty
@@ -180,7 +205,7 @@ function initNativeDatabase(db: SQLite.SQLiteDatabase) {
       db.runSync(
         `INSERT INTO categories (id, name, icon, color, type, monthly_budget_cents, created_at)
          VALUES (?, ?, ?, ?, ?, ?, ?);`,
-        [cat.id, cat.name, cat.icon, cat.color, cat.type, null, now]
+        [cat.id, cat.name, cat.icon, cat.color, cat.type, cat.monthly_budget_cents || null, now]
       );
     }
   }
@@ -192,7 +217,7 @@ function initNativeDatabase(db: SQLite.SQLiteDatabase) {
 }
 
 // ----------------------------------------------------
-// SETTINGS
+// SETTINGS & BIOMETRICS
 // ----------------------------------------------------
 export function getBaseCurrency(): string {
   if (Platform.OS === 'web') {
@@ -214,8 +239,29 @@ export function setBaseCurrency(currency: string): void {
   db?.runSync('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?);', ['base_currency', currency]);
 }
 
+export function getBiometricsEnabled(): boolean {
+  if (Platform.OS === 'web') {
+    return getWebStore().biometrics_enabled;
+  }
+  const db = getDatabase();
+  const res = db?.getFirstSync<{ value: string }>('SELECT value FROM settings WHERE key = ?;', ['biometrics_enabled']);
+  return res?.value === 'true';
+}
+
+export function setBiometricsEnabled(enabled: boolean): void {
+  const strVal = enabled ? 'true' : 'false';
+  if (Platform.OS === 'web') {
+    const store = getWebStore();
+    store.biometrics_enabled = enabled;
+    saveWebStore(store);
+    return;
+  }
+  const db = getDatabase();
+  db?.runSync('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?);', ['biometrics_enabled', strVal]);
+}
+
 // ----------------------------------------------------
-// ACCOUNTS & CARDS (CRUD & BALANCE ADJUSTERS)
+// ACCOUNTS & CARDS
 // ----------------------------------------------------
 export function getAllAccounts(): Account[] {
   if (Platform.OS === 'web') {
@@ -411,6 +457,9 @@ export function deleteCard(id: string): void {
   db?.runSync('DELETE FROM cards WHERE id = ?;', [id]);
 }
 
+// ----------------------------------------------------
+// CATEGORIES & BUDGETS
+// ----------------------------------------------------
 export function getAllCategories(): Category[] {
   if (Platform.OS === 'web') {
     return getWebStore().categories;
@@ -419,10 +468,88 @@ export function getAllCategories(): Category[] {
   return db?.getAllSync<Category>('SELECT * FROM categories ORDER BY type ASC, name ASC;') || [];
 }
 
+export function updateCategoryBudget(categoryId: string, monthlyBudgetCents: number | null): void {
+  if (Platform.OS === 'web') {
+    const store = getWebStore();
+    const cat = store.categories.find(c => c.id === categoryId);
+    if (cat) {
+      cat.monthly_budget_cents = monthlyBudgetCents;
+      saveWebStore(store);
+    }
+    return;
+  }
+  const db = getDatabase();
+  db?.runSync('UPDATE categories SET monthly_budget_cents = ? WHERE id = ?;', [monthlyBudgetCents, categoryId]);
+}
+
+// ----------------------------------------------------
+// RECURRING BILLS & SUBSCRIPTIONS
+// ----------------------------------------------------
+export function getAllRecurringBills(): RecurringBill[] {
+  if (Platform.OS === 'web') {
+    return getWebStore().recurring_bills;
+  }
+  const db = getDatabase();
+  return db?.getAllSync<RecurringBill>('SELECT * FROM recurring_bills ORDER BY due_day ASC;') || [];
+}
+
+export function createRecurringBill(bill: Omit<RecurringBill, 'created_at'>): void {
+  const fullBill: RecurringBill = { ...bill, created_at: new Date().toISOString() };
+  if (Platform.OS === 'web') {
+    const store = getWebStore();
+    store.recurring_bills.push(fullBill);
+    saveWebStore(store);
+    return;
+  }
+  const db = getDatabase();
+  db?.runSync(
+    `INSERT INTO recurring_bills (id, name, amount_cents, currency, category_id, account_id, card_id, frequency, due_day, is_active, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
+    [
+      fullBill.id,
+      fullBill.name,
+      fullBill.amount_cents,
+      fullBill.currency,
+      fullBill.category_id || null,
+      fullBill.account_id || null,
+      fullBill.card_id || null,
+      fullBill.frequency,
+      fullBill.due_day,
+      fullBill.is_active ? 1 : 0,
+      fullBill.created_at,
+    ]
+  );
+}
+
+export function toggleRecurringBill(id: string, isActive: boolean): void {
+  if (Platform.OS === 'web') {
+    const store = getWebStore();
+    const bill = store.recurring_bills.find(b => b.id === id);
+    if (bill) {
+      bill.is_active = isActive;
+      saveWebStore(store);
+    }
+    return;
+  }
+  const db = getDatabase();
+  db?.runSync('UPDATE recurring_bills SET is_active = ? WHERE id = ?;', [isActive ? 1 : 0, id]);
+}
+
+export function deleteRecurringBill(id: string): void {
+  if (Platform.OS === 'web') {
+    const store = getWebStore();
+    store.recurring_bills = store.recurring_bills.filter(b => b.id !== id);
+    saveWebStore(store);
+    return;
+  }
+  const db = getDatabase();
+  db?.runSync('DELETE FROM recurring_bills WHERE id = ?;', [id]);
+}
+
 // ----------------------------------------------------
 // TRANSACTIONS
 // ----------------------------------------------------
-export function getAllTransactions(limit: number = 200): Transaction[] {
+export function getAllTransactions(limit: number = 300): Transaction[] {
   if (Platform.OS === 'web') {
     return getWebStore().transactions.slice(0, limit);
   }
@@ -430,21 +557,6 @@ export function getAllTransactions(limit: number = 200): Transaction[] {
   return db?.getAllSync<Transaction>(
     'SELECT * FROM transactions ORDER BY date DESC, created_at DESC LIMIT ?;',
     [limit]
-  ) || [];
-}
-
-export function getTransactionsByEntity(entityId: string): Transaction[] {
-  if (Platform.OS === 'web') {
-    return getWebStore().transactions.filter(
-      t => t.account_id === entityId || t.card_id === entityId || t.to_account_id === entityId
-    );
-  }
-  const db = getDatabase();
-  return db?.getAllSync<Transaction>(
-    `SELECT * FROM transactions 
-     WHERE account_id = ? OR card_id = ? OR to_account_id = ? 
-     ORDER BY date DESC, created_at DESC;`,
-    [entityId, entityId, entityId]
   ) || [];
 }
 
@@ -625,15 +737,17 @@ export function exportDatabaseJSON(): string {
   const cards = getAllCards();
   const categories = getAllCategories();
   const transactions = getAllTransactions(10000);
+  const recurring_bills = getAllRecurringBills();
 
   const backup: DatabaseBackup = {
-    version: 2,
+    version: 3,
     exported_at: new Date().toISOString(),
     base_currency: baseCurrency,
     accounts,
     cards,
     categories,
     transactions,
+    recurring_bills,
   };
 
   return JSON.stringify(backup, null, 2);
@@ -685,10 +799,12 @@ export function importDatabaseJSON(jsonStr: string): boolean {
     if (Platform.OS === 'web') {
       const store: WebStore = {
         base_currency: backup.base_currency || 'INR',
+        biometrics_enabled: false,
         accounts: backup.accounts,
         cards: backup.cards,
         categories: backup.categories,
         transactions: backup.transactions,
+        recurring_bills: backup.recurring_bills || [],
       };
       saveWebStore(store);
       return true;
@@ -702,6 +818,7 @@ export function importDatabaseJSON(jsonStr: string): boolean {
       db.runSync('DELETE FROM cards;');
       db.runSync('DELETE FROM accounts;');
       db.runSync('DELETE FROM categories;');
+      db.runSync('DELETE FROM recurring_bills;');
 
       setBaseCurrency(backup.base_currency || 'INR');
 
@@ -761,6 +878,16 @@ export function importDatabaseJSON(jsonStr: string): boolean {
             tx.created_at,
           ]
         );
+      }
+
+      if (backup.recurring_bills) {
+        for (const r of backup.recurring_bills) {
+          db.runSync(
+            `INSERT INTO recurring_bills (id, name, amount_cents, currency, category_id, account_id, card_id, frequency, due_day, is_active, created_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
+            [r.id, r.name, r.amount_cents, r.currency, r.category_id || null, r.account_id || null, r.card_id || null, r.frequency, r.due_day, r.is_active ? 1 : 0, r.created_at]
+          );
+        }
       }
     });
 
