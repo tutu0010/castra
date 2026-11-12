@@ -14,7 +14,7 @@ import { formatMoney } from '../utils/currency';
 import { triggerLightHaptic } from '../utils/haptics';
 
 const { width } = Dimensions.get('window');
-const CARD_WIDTH = Math.min(width * 0.78, 300);
+const CARD_WIDTH = Math.min(width * 0.74, 275);
 
 interface CardDeckProps {
   accounts: Account[];
@@ -36,7 +36,7 @@ export const CardDeck: React.FC<CardDeckProps> = ({
   return (
     <View style={styles.container}>
       <View style={styles.headerRow}>
-        <Text style={styles.sectionTitle}>Your Wallets & Cards</Text>
+        <Text style={styles.sectionTitle}>Accounts & Cards</Text>
         {selectedId && (
           <TouchableOpacity
             onPress={() => {
@@ -54,7 +54,7 @@ export const CardDeck: React.FC<CardDeckProps> = ({
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
         decelerationRate="fast"
-        snapToInterval={CARD_WIDTH + 14}
+        snapToInterval={CARD_WIDTH + 12}
       >
         {/* Credit & Debit Cards */}
         {cards.map(card => {
@@ -68,89 +68,66 @@ export const CardDeck: React.FC<CardDeckProps> = ({
           return (
             <TouchableOpacity
               key={card.id}
-              activeOpacity={0.9}
+              activeOpacity={0.88}
               onPress={() => {
                 triggerLightHaptic();
                 onSelect(isSelected ? null : card.id);
               }}
               style={[
                 styles.cardBase,
-                { backgroundColor: card.color || '#3E4968' },
+                { backgroundColor: card.color || '#1E252E' },
                 isSelected && styles.cardSelected,
               ]}
             >
-              {/* Top Row: Type & Chip */}
               <View style={styles.cardTopRow}>
-                <View style={styles.badgeRow}>
-                  <CreditCard size={15} color="#FFFFFF" opacity={0.85} />
-                  <Text style={styles.cardTypeBadge}>
-                    {isCredit ? 'CREDIT CARD' : 'DEBIT CARD'}
-                  </Text>
+                <View style={styles.typeRow}>
+                  <CreditCard size={13} color={CozyTheme.textSecondary} />
+                  <Text style={styles.typeText}>{isCredit ? 'Credit' : 'Debit'}</Text>
                 </View>
-                {card.last4 ? (
-                  <Text style={styles.last4Text}>•••• {card.last4}</Text>
-                ) : null}
+                {card.last4 ? <Text style={styles.last4Text}>•• {card.last4}</Text> : null}
               </View>
 
-              {/* Middle: Name & Balance */}
               <View style={styles.cardMiddle}>
                 <Text style={styles.cardName} numberOfLines={1}>
                   {card.name}
                 </Text>
-                {isCredit ? (
-                  <View>
-                    <Text style={styles.balanceLabel}>Current Balance</Text>
-                    <Text style={styles.cardBalance}>
-                      {formatMoney(outstanding, card.currency)}
-                    </Text>
-                  </View>
-                ) : (
-                  <View>
-                    <Text style={styles.balanceLabel}>Direct Debit</Text>
-                    <Text style={styles.cardBalance}>Linked to Checking</Text>
-                  </View>
-                )}
+                <Text style={styles.cardBalance}>
+                  {isCredit ? formatMoney(outstanding, card.currency) : 'Direct Debit'}
+                </Text>
               </View>
 
-              {/* Bottom Row: Utilization or Statements */}
               {isCredit && limit > 0 && (
                 <View style={styles.cardBottom}>
-                  <View style={styles.utilizationHeader}>
-                    <Text style={styles.utilizationLabel}>
-                      Limit: {formatMoney(limit, card.currency)}
+                  <View style={styles.limitRow}>
+                    <Text style={styles.limitText}>
+                      Limit {formatMoney(limit, card.currency)}
                     </Text>
-                    <Text style={styles.utilizationPct}>{utilizationPct}% used</Text>
+                    <Text style={styles.utilizationText}>{utilizationPct}%</Text>
                   </View>
-                  <View style={styles.progressBarTrack}>
+                  <View style={styles.progressTrack}>
                     <View
                       style={[
-                        styles.progressBarFill,
+                        styles.progressFill,
                         {
-                          width: `${Math.max(4, utilizationPct)}%`,
+                          width: `${Math.max(3, utilizationPct)}%`,
                           backgroundColor:
-                            utilizationPct > 75
-                              ? '#FFA08A'
-                              : utilizationPct > 35
-                              ? '#FFDE99'
-                              : '#95E3AB',
+                            utilizationPct > 70
+                              ? CozyTheme.expense
+                              : utilizationPct > 30
+                              ? CozyTheme.warning
+                              : CozyTheme.income,
                         },
                       ]}
                     />
                   </View>
-
-                  {card.due_day && (
-                    <View style={styles.cardFooter}>
-                      <Text style={styles.dueDayText}>Due on {card.due_day}th</Text>
-                      {outstanding > 0 && onPayCardPress && (
-                        <TouchableOpacity
-                          style={styles.payButton}
-                          onPress={() => onPayCardPress(card)}
-                        >
-                          <Text style={styles.payButtonText}>Pay</Text>
-                          <ArrowUpRight size={12} color="#FFFFFF" />
-                        </TouchableOpacity>
-                      )}
-                    </View>
+                  {outstanding > 0 && onPayCardPress && (
+                    <TouchableOpacity
+                      style={styles.payLink}
+                      onPress={() => onPayCardPress(card)}
+                    >
+                      <Text style={styles.payLinkText}>Pay Balance</Text>
+                      <ArrowUpRight size={11} color={CozyTheme.textPrimary} />
+                    </TouchableOpacity>
                   )}
                 </View>
               )}
@@ -166,50 +143,46 @@ export const CardDeck: React.FC<CardDeckProps> = ({
           return (
             <TouchableOpacity
               key={acc.id}
-              activeOpacity={0.9}
+              activeOpacity={0.88}
               onPress={() => {
                 triggerLightHaptic();
                 onSelect(isSelected ? null : acc.id);
               }}
               style={[
                 styles.cardBase,
-                { backgroundColor: acc.color || '#2C343E' },
+                { backgroundColor: acc.color || '#1A1816' },
                 isSelected && styles.cardSelected,
               ]}
             >
               <View style={styles.cardTopRow}>
-                <View style={styles.badgeRow}>
+                <View style={styles.typeRow}>
                   {isBank ? (
-                    <Landmark size={15} color="#FFFFFF" opacity={0.85} />
+                    <Landmark size={13} color={CozyTheme.textSecondary} />
                   ) : (
-                    <Wallet size={15} color="#FFFFFF" opacity={0.85} />
+                    <Wallet size={13} color={CozyTheme.textSecondary} />
                   )}
-                  <Text style={styles.cardTypeBadge}>
-                    {isBank ? 'BANK ACCOUNT' : 'WALLET / CASH'}
-                  </Text>
+                  <Text style={styles.typeText}>{isBank ? 'Bank' : 'Wallet'}</Text>
                 </View>
+                <Text style={styles.last4Text}>{acc.currency}</Text>
               </View>
 
               <View style={styles.cardMiddle}>
                 <Text style={styles.cardName} numberOfLines={1}>
                   {acc.name}
                 </Text>
-                <View>
-                  <Text style={styles.balanceLabel}>Available Balance</Text>
-                  <Text style={styles.cardBalance}>
-                    {formatMoney(acc.balance_cents, acc.currency)}
-                  </Text>
-                </View>
+                <Text style={styles.cardBalance}>
+                  {formatMoney(acc.balance_cents, acc.currency)}
+                </Text>
               </View>
 
               <View style={styles.cardBottom}>
-                <Text style={styles.accountCurrencyTag}>{acc.currency} Primary</Text>
+                <Text style={styles.availableTag}>Available Funds</Text>
               </View>
             </TouchableOpacity>
           );
         })}
 
-        {/* Add New Card / Account Card */}
+        {/* Minimal Add Card */}
         <TouchableOpacity
           style={styles.addCardButton}
           activeOpacity={0.7}
@@ -219,10 +192,9 @@ export const CardDeck: React.FC<CardDeckProps> = ({
           }}
         >
           <View style={styles.addIconCircle}>
-            <Plus size={20} color={CozyTheme.textSecondary} />
+            <Plus size={16} color={CozyTheme.textSecondary} />
           </View>
-          <Text style={styles.addCardTitle}>Add Account or Card</Text>
-          <Text style={styles.addCardSubtitle}>Bank, Credit, Debit, Wallet</Text>
+          <Text style={styles.addCardTitle}>New Account</Text>
         </TouchableOpacity>
       </ScrollView>
     </View>
@@ -237,39 +209,37 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
+    paddingHorizontal: 22,
     marginBottom: 10,
   },
   sectionTitle: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '700',
-    color: CozyTheme.textPrimary,
-    letterSpacing: -0.2,
+    color: CozyTheme.textSecondary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
   },
   clearFilterText: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '600',
     color: CozyTheme.expense,
   },
   scrollContent: {
-    paddingHorizontal: 20,
-    gap: 14,
+    paddingHorizontal: 22,
+    gap: 12,
   },
   cardBase: {
     width: CARD_WIDTH,
-    height: 172,
-    borderRadius: 22,
+    height: 154,
+    borderRadius: 20,
     padding: 16,
     justifyContent: 'space-between',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.12,
-    shadowRadius: 10,
-    elevation: 4,
+    borderWidth: 1,
+    borderColor: CozyTheme.border,
   },
   cardSelected: {
-    borderWidth: 2.5,
-    borderColor: '#FFFFFF',
+    borderColor: CozyTheme.textPrimary,
+    borderWidth: 2,
     transform: [{ scale: 1.02 }],
   },
   cardTopRow: {
@@ -277,139 +247,106 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  badgeRow: {
+  typeRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 5,
   },
-  cardTypeBadge: {
-    fontSize: 10,
-    fontWeight: '800',
-    color: '#FFFFFF',
-    letterSpacing: 0.8,
-    opacity: 0.85,
+  typeText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: CozyTheme.textSecondary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   last4Text: {
-    fontSize: 12,
-    color: '#FFFFFF',
+    fontSize: 11,
+    color: CozyTheme.textSecondary,
     fontWeight: '600',
-    opacity: 0.75,
   },
   cardMiddle: {
-    gap: 4,
+    gap: 2,
   },
   cardName: {
-    fontSize: 17,
+    fontSize: 15,
     fontWeight: '700',
-    color: '#FFFFFF',
-    letterSpacing: -0.3,
-  },
-  balanceLabel: {
-    fontSize: 11,
-    color: '#FFFFFF',
-    opacity: 0.75,
-    textTransform: 'uppercase',
-    letterSpacing: 0.4,
-    marginTop: 4,
+    color: CozyTheme.textPrimary,
+    letterSpacing: -0.2,
   },
   cardBalance: {
     fontSize: 22,
     fontWeight: '800',
-    color: '#FFFFFF',
+    color: CozyTheme.textPrimary,
     letterSpacing: -0.5,
   },
   cardBottom: {
-    marginTop: 2,
+    gap: 4,
   },
-  utilizationHeader: {
+  limitRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 4,
   },
-  utilizationLabel: {
-    fontSize: 10,
-    color: '#FFFFFF',
-    opacity: 0.8,
-    fontWeight: '500',
-  },
-  utilizationPct: {
-    fontSize: 10,
-    color: '#FFFFFF',
-    fontWeight: '700',
-  },
-  progressBarTrack: {
-    height: 5,
-    backgroundColor: 'rgba(255, 255, 255, 0.25)',
-    borderRadius: 3,
-    overflow: 'hidden',
-  },
-  progressBarFill: {
-    height: '100%',
-    borderRadius: 3,
-  },
-  cardFooter: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: 6,
-  },
-  dueDayText: {
-    fontSize: 10,
-    color: '#FFFFFF',
-    opacity: 0.85,
-    fontWeight: '600',
-  },
-  payButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.22)',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 12,
-    gap: 2,
-  },
-  payButtonText: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-  accountCurrencyTag: {
-    fontSize: 11,
-    color: '#FFFFFF',
-    opacity: 0.8,
-    fontWeight: '600',
-  },
-  addCardButton: {
-    width: 140,
-    height: 172,
-    borderRadius: 22,
-    borderWidth: 1.5,
-    borderStyle: 'dashed',
-    borderColor: CozyTheme.borderStrong,
-    backgroundColor: 'rgba(255, 255, 255, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 14,
-  },
-  addIconCircle: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: CozyTheme.surfaceMuted,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 10,
-  },
-  addCardTitle: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: CozyTheme.textPrimary,
-    textAlign: 'center',
-  },
-  addCardSubtitle: {
+  limitText: {
     fontSize: 10,
     color: CozyTheme.textSecondary,
-    textAlign: 'center',
+  },
+  utilizationText: {
+    fontSize: 10,
+    color: CozyTheme.textSecondary,
+    fontWeight: '700',
+  },
+  progressTrack: {
+    height: 3,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderRadius: 2,
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: '100%',
+    borderRadius: 2,
+  },
+  payLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    alignSelf: 'flex-start',
     marginTop: 2,
+  },
+  payLinkText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: CozyTheme.textPrimary,
+  },
+  availableTag: {
+    fontSize: 10,
+    color: CozyTheme.textTertiary,
+    fontWeight: '500',
+  },
+  addCardButton: {
+    width: 110,
+    height: 154,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderColor: CozyTheme.borderStrong,
+    backgroundColor: CozyTheme.surface,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 10,
+  },
+  addIconCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: CozyTheme.surfaceElevated,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  addCardTitle: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: CozyTheme.textSecondary,
+    textAlign: 'center',
   },
 });

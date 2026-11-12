@@ -141,7 +141,7 @@ export default function App() {
   return (
     <SafeAreaProvider>
       <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
-        <StatusBar style="dark" />
+        <StatusBar style="light" />
 
         <ScrollView
           style={styles.container}
@@ -280,9 +280,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    marginTop: 10,
-    marginBottom: 12,
+    paddingHorizontal: 22,
+    marginTop: 14,
+    marginBottom: 10,
   },
   feedTitleGroup: {
     flexDirection: 'row',
@@ -290,43 +290,42 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   feedTitle: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: CozyTheme.textPrimary,
-    letterSpacing: -0.2,
+    fontSize: 14,
+    fontWeight: '700',
+    color: CozyTheme.textSecondary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
   },
   filteredBadge: {
-    backgroundColor: CozyTheme.surfaceElevated,
+    backgroundColor: CozyTheme.surfaceMuted,
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 6,
-    borderWidth: 1,
-    borderColor: CozyTheme.border,
   },
   filteredBadgeText: {
     fontSize: 10,
     fontWeight: '700',
-    color: CozyTheme.textSecondary,
+    color: CozyTheme.textPrimary,
   },
   transactionCountText: {
     fontSize: 12,
-    color: CozyTheme.textSecondary,
-    fontWeight: '600',
+    color: CozyTheme.textTertiary,
+    fontWeight: '500',
   },
   transactionsList: {
-    paddingHorizontal: 20,
+    paddingHorizontal: 22,
   },
   emptyContainer: {
     backgroundColor: CozyTheme.surface,
-    padding: 30,
+    padding: 36,
     borderRadius: 20,
     alignItems: 'center',
     borderWidth: 1,
     borderColor: CozyTheme.borderLight,
-    marginTop: 10,
+    marginTop: 6,
   },
   emptyTitle: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '700',
     color: CozyTheme.textPrimary,
   },
@@ -335,7 +334,7 @@ const styles = StyleSheet.create({
     color: CozyTheme.textSecondary,
     textAlign: 'center',
     marginTop: 4,
-    lineHeight: 16,
+    lineHeight: 17,
   },
   fabContainer: {
     position: 'absolute',
@@ -347,21 +346,23 @@ const styles = StyleSheet.create({
   fabButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: CozyTheme.textPrimary,
+    backgroundColor: CozyTheme.surfaceElevated,
     paddingVertical: 14,
-    paddingHorizontal: 26,
-    borderRadius: 30,
+    paddingHorizontal: 24,
+    borderRadius: 28,
+    borderWidth: 1,
+    borderColor: CozyTheme.borderStrong,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.25,
+    shadowOpacity: 0.35,
     shadowRadius: 10,
     elevation: 8,
     gap: 8,
   },
   fabText: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: CozyTheme.textPrimary,
     letterSpacing: -0.2,
   },
 });

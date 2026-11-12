@@ -304,7 +304,7 @@ export const AddAccountOrCardModal: React.FC<AddAccountOrCardModalProps> = ({
 
           {/* Submit */}
           <TouchableOpacity style={styles.submitButton} onPress={handleSave} activeOpacity={0.8}>
-            <Check size={18} color="#FFFFFF" style={{ marginRight: 6 }} />
+            <Check size={18} color={CozyTheme.textInverse} style={{ marginRight: 6 }} />
             <Text style={styles.submitButtonText}>Create Entity</Text>
           </TouchableOpacity>
         </View>
@@ -316,13 +316,17 @@ export const AddAccountOrCardModal: React.FC<AddAccountOrCardModalProps> = ({
 const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(35, 31, 29, 0.45)',
+    backgroundColor: 'rgba(0, 0, 0, 0.72)',
     justifyContent: 'flex-end',
   },
   modalContainer: {
     backgroundColor: CozyTheme.surface,
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
+    borderTopWidth: 1,
+    borderLeftWidth: 1,
+    borderRightWidth: 1,
+    borderColor: CozyTheme.border,
     paddingHorizontal: 20,
     paddingTop: 18,
     paddingBottom: 34,
@@ -443,6 +447,6 @@ const styles = StyleSheet.create({
   submitButtonText: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: CozyTheme.textInverse,
   },
 });

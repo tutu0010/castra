@@ -417,13 +417,17 @@ export const QuickAddModal: React.FC<QuickAddModalProps> = ({
 const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(35, 31, 29, 0.45)',
+    backgroundColor: 'rgba(0, 0, 0, 0.72)',
     justifyContent: 'flex-end',
   },
   modalContainer: {
     backgroundColor: CozyTheme.surface,
-    borderTopLeftRadius: 30,
-    borderTopRightRadius: 30,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    borderTopWidth: 1,
+    borderLeftWidth: 1,
+    borderRightWidth: 1,
+    borderColor: CozyTheme.border,
     paddingTop: 16,
     paddingBottom: 34,
     paddingHorizontal: 20,

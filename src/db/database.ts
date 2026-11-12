@@ -81,50 +81,7 @@ const DEFAULT_CATEGORIES: Category[] = [
   { id: 'cat_freelance', name: 'Side Hustles', icon: 'laptop', color: '#4B6B94', type: 'income', monthly_budget_cents: null, created_at: now },
 ];
 
-const DEFAULT_TRANSACTIONS: Transaction[] = [
-  {
-    id: 'tx_1',
-    account_id: null,
-    card_id: 'card_sapphire',
-    category_id: 'cat_groceries',
-    amount_cents: 6450,
-    currency: 'USD',
-    exchange_rate: 1.0,
-    base_amount_cents: 6450,
-    type: 'expense',
-    date: yesterday,
-    note: "Trader Joe's weekly restock",
-    created_at: yesterday,
-  },
-  {
-    id: 'tx_2',
-    account_id: 'acc_main_bank',
-    card_id: 'card_debit',
-    category_id: 'cat_coffee',
-    amount_cents: 675,
-    currency: 'USD',
-    exchange_rate: 1.0,
-    base_amount_cents: 675,
-    type: 'expense',
-    date: yesterday,
-    note: 'Artisan Flat White',
-    created_at: yesterday,
-  },
-  {
-    id: 'tx_3',
-    account_id: null,
-    card_id: 'card_sapphire',
-    category_id: 'cat_food',
-    amount_cents: 4820,
-    currency: 'USD',
-    exchange_rate: 1.0,
-    base_amount_cents: 4820,
-    type: 'expense',
-    date: twoDaysAgo,
-    note: 'Neighborhood Italian Bistro',
-    created_at: twoDaysAgo,
-  },
-];
+const DEFAULT_TRANSACTIONS: Transaction[] = [];
 
 // ----------------------------------------------------
 // WEB STORAGE FALLBACK (LOCAL STORAGE)
@@ -164,7 +121,9 @@ function getWebStore(): WebStore {
   }
 
   try {
-    return JSON.parse(raw);
+    const parsed: WebStore = JSON.parse(raw);
+    parsed.transactions = (parsed.transactions || []).filter(t => !['tx_1', 'tx_2', 'tx_3'].includes(t.id));
+    return parsed;
   } catch {
     return {
       base_currency: 'USD',
@@ -268,6 +227,8 @@ function initNativeDatabase(db: SQLite.SQLiteDatabase) {
   if (!accountCount || accountCount.count === 0) {
     seedNativeData(db);
   }
+  // Clear any mock seed transactions so user starts with a clean slate
+  db.runSync("DELETE FROM transactions WHERE id IN ('tx_1', 'tx_2', 'tx_3');");
 }
 
 function seedNativeData(db: SQLite.SQLiteDatabase) {

@@ -237,13 +237,17 @@ export const SettingsBackupModal: React.FC<SettingsBackupModalProps> = ({
 const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(35, 31, 29, 0.45)',
+    backgroundColor: 'rgba(0, 0, 0, 0.72)',
     justifyContent: 'flex-end',
   },
   modalContainer: {
     backgroundColor: CozyTheme.surface,
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
+    borderTopWidth: 1,
+    borderLeftWidth: 1,
+    borderRightWidth: 1,
+    borderColor: CozyTheme.border,
     paddingHorizontal: 20,
     paddingTop: 18,
     paddingBottom: 36,
@@ -332,7 +336,7 @@ const styles = StyleSheet.create({
     color: CozyTheme.textPrimary,
   },
   currencyItemCodeSelected: {
-    color: '#FFFFFF',
+    color: CozyTheme.textInverse,
   },
   currencyItemName: {
     fontSize: 9,

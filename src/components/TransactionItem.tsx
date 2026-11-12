@@ -59,14 +59,12 @@ export const TransactionItem: React.FC<TransactionItemProps> = ({
   const isIncome = transaction.type === 'income';
   const isTransfer = transaction.type === 'transfer';
 
-  // Format date: "Nov 12" or "Today"
   const txDate = new Date(transaction.date);
   const isToday = new Date().toDateString() === txDate.toDateString();
   const dateFormatted = isToday
-    ? `Today, ${txDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
+    ? 'Today'
     : txDate.toLocaleDateString([], { month: 'short', day: 'numeric' });
 
-  // Source name
   let sourceName = 'Manual';
   if (card) {
     sourceName = card.last4 ? `${card.name} (••${card.last4})` : card.name;
@@ -83,25 +81,12 @@ export const TransactionItem: React.FC<TransactionItemProps> = ({
   return (
     <View style={styles.container}>
       {/* Category Icon */}
-      <View
-        style={[
-          styles.iconContainer,
-          {
-            backgroundColor: isTransfer
-              ? CozyTheme.transferSoft
-              : isIncome
-              ? CozyTheme.incomeSoft
-              : category?.color
-              ? `${category.color}20`
-              : CozyTheme.surfaceMuted,
-          },
-        ]}
-      >
+      <View style={styles.iconContainer}>
         {isTransfer ? (
-          <ArrowRightLeft size={18} color={CozyTheme.transfer} />
+          <ArrowRightLeft size={16} color={CozyTheme.transfer} />
         ) : (
           <IconComponent
-            size={18}
+            size={16}
             color={
               isIncome
                 ? CozyTheme.income
@@ -156,9 +141,9 @@ export const TransactionItem: React.FC<TransactionItemProps> = ({
           triggerLightHaptic();
           onDelete(transaction.id);
         }}
-        activeOpacity={0.6}
+        activeOpacity={0.5}
       >
-        <Trash2 size={15} color={CozyTheme.textTertiary} />
+        <Trash2 size={13} color={CozyTheme.textTertiary} />
       </TouchableOpacity>
     </View>
   );
@@ -169,22 +154,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 12,
-    paddingHorizontal: 16,
+    paddingHorizontal: 14,
     backgroundColor: CozyTheme.surface,
-    borderRadius: 18,
-    marginBottom: 8,
+    borderRadius: 16,
+    marginBottom: 6,
     borderWidth: 1,
     borderColor: CozyTheme.borderLight,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.02,
-    shadowRadius: 4,
-    elevation: 1,
   },
   iconContainer: {
-    width: 42,
-    height: 42,
-    borderRadius: 14,
+    width: 36,
+    height: 36,
+    borderRadius: 12,
+    backgroundColor: CozyTheme.surfaceElevated,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
@@ -194,7 +175,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   title: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '700',
     color: CozyTheme.textPrimary,
     letterSpacing: -0.2,
@@ -202,17 +183,17 @@ const styles = StyleSheet.create({
   metaRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 3,
+    marginTop: 2,
   },
   sourceTag: {
     fontSize: 11,
     color: CozyTheme.textSecondary,
-    fontWeight: '600',
+    fontWeight: '500',
     maxWidth: 130,
   },
   dotSeparator: {
     marginHorizontal: 5,
-    fontSize: 10,
+    fontSize: 9,
     color: CozyTheme.textTertiary,
   },
   dateText: {
@@ -224,10 +205,10 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   amountText: {
-    fontSize: 15,
-    fontWeight: '800',
+    fontSize: 14,
+    fontWeight: '700',
     color: CozyTheme.textPrimary,
-    letterSpacing: -0.3,
+    letterSpacing: -0.2,
   },
   expenseText: {
     color: CozyTheme.expense,
@@ -240,9 +221,8 @@ const styles = StyleSheet.create({
   },
   convertedAmountText: {
     fontSize: 10,
-    color: CozyTheme.textSecondary,
-    marginTop: 2,
-    fontWeight: '500',
+    color: CozyTheme.textTertiary,
+    marginTop: 1,
   },
   deleteButton: {
     padding: 6,
