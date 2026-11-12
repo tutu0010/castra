@@ -234,7 +234,7 @@ export function getAllCards(): Card[] {
           .filter(t => t.card_id === card.id && t.type === 'expense')
           .reduce((sum, t) => sum + t.amount_cents, 0);
         const paid = store.transactions
-          .filter(t => t.card_id === card.id && t.type === 'transfer')
+          .filter(t => (t.card_id === card.id || t.to_account_id === card.id) && t.type === 'transfer')
           .reduce((sum, t) => sum + t.amount_cents, 0);
         return {
           ...card,
@@ -260,8 +260,8 @@ export function getAllCards(): Card[] {
       const payments = db.getFirstSync<{ total_paid: number }>(
         `SELECT COALESCE(SUM(amount_cents), 0) as total_paid 
          FROM transactions 
-         WHERE card_id = ? AND type = 'transfer';`,
-        [card.id]
+         WHERE (card_id = ? OR to_account_id = ?) AND type = 'transfer';`,
+        [card.id, card.id]
       );
       const spent = result?.total_spent || 0;
       const paid = payments?.total_paid || 0;
@@ -535,7 +535,10 @@ export function addTransaction(tx: Omit<Transaction, 'created_at' | 'base_amount
         db.runSync('UPDATE accounts SET balance_cents = balance_cents - ? WHERE id = ?;', [fullTx.amount_cents, fullTx.account_id]);
       }
       if (fullTx.to_account_id) {
-        db.runSync('UPDATE accounts SET balance_cents = balance_cents + ? WHERE id = ?;', [fullTx.amount_cents, fullTx.to_account_id]);
+        const targetAcc = db.getFirstSync<Account>('SELECT id FROM accounts WHERE id = ?;', [fullTx.to_account_id]);
+        if (targetAcc) {
+          db.runSync('UPDATE accounts SET balance_cents = balance_cents + ? WHERE id = ?;', [fullTx.amount_cents, fullTx.to_account_id]);
+        }
       }
     }
   });
@@ -602,7 +605,10 @@ export function deleteTransaction(txId: string): void {
         db.runSync('UPDATE accounts SET balance_cents = balance_cents + ? WHERE id = ?;', [tx.amount_cents, tx.account_id]);
       }
       if (tx.to_account_id) {
-        db.runSync('UPDATE accounts SET balance_cents = balance_cents - ? WHERE id = ?;', [tx.amount_cents, tx.to_account_id]);
+        const targetAcc = db.getFirstSync<Account>('SELECT id FROM accounts WHERE id = ?;', [tx.to_account_id]);
+        if (targetAcc) {
+          db.runSync('UPDATE accounts SET balance_cents = balance_cents - ? WHERE id = ?;', [tx.amount_cents, tx.to_account_id]);
+        }
       }
     }
 

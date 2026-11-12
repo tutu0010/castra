@@ -104,16 +104,18 @@ export const QuickAddModal: React.FC<QuickAddModalProps> = ({
     const amount_cents = decimals === 0 ? Math.round(numericAmount) : Math.round(numericAmount * 100);
 
     const isCard = cards.some(c => c.id === selectedSourceId);
+    const isTargetCard = cards.some(c => c.id === selectedToAccountId);
+    const targetCard = cards.find(c => c.id === selectedToAccountId);
 
     onSave({
       amount_cents,
       currency: selectedCurrency,
       type: mode,
-      card_id: isCard ? selectedSourceId : null,
+      card_id: mode === 'transfer' ? (isTargetCard ? selectedToAccountId : null) : (isCard ? selectedSourceId : null),
       account_id: isCard ? null : selectedSourceId,
       to_account_id: mode === 'transfer' ? selectedToAccountId : null,
       category_id: mode === 'transfer' ? null : selectedCategoryId,
-      note: note.trim() || undefined,
+      note: note.trim() || (isTargetCard && targetCard ? `Payment to ${targetCard.name}` : undefined),
       date: new Date().toISOString(),
     });
 
@@ -289,15 +291,41 @@ export const QuickAddModal: React.FC<QuickAddModalProps> = ({
             </ScrollView>
           )}
 
-          {/* Destination Account (Transfer) or Category (Expense/Income) */}
+          {/* Destination Account / Card (Transfer Mode) */}
           {mode === 'transfer' ? (
             <View>
-              <Text style={styles.fieldSectionLabel}>Transfer To</Text>
+              <Text style={styles.fieldSectionLabel}>Transfer To (Bank, Card, or Wallet)</Text>
               <ScrollView
                 horizontal
                 showsHorizontalScrollIndicator={false}
                 contentContainerStyle={styles.sourceScrollContent}
               >
+                {/* Credit Cards (Pay Credit Card Bill) */}
+                {cards
+                  .filter(c => c.type === 'credit' && c.id !== selectedSourceId)
+                  .map(c => {
+                    const isSelected = selectedToAccountId === c.id;
+                    return (
+                      <TouchableOpacity
+                        key={c.id}
+                        style={[
+                          styles.sourcePill,
+                          isSelected && { borderColor: CozyTheme.income, borderWidth: 1.5, backgroundColor: CozyTheme.surfaceElevated },
+                        ]}
+                        onPress={() => {
+                          triggerLightHaptic();
+                          setSelectedToAccountId(c.id);
+                        }}
+                      >
+                        <View style={[styles.sourceDot, { backgroundColor: c.color || '#1C222B' }]} />
+                        <Text style={[styles.sourcePillText, isSelected && { color: CozyTheme.income }]}>
+                          {c.name} (Credit Card)
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+
+                {/* Other Bank Accounts and Wallets */}
                 {accounts
                   .filter(a => a.id !== selectedSourceId)
                   .map(a => {

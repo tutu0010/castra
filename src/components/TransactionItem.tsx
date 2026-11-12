@@ -73,7 +73,9 @@ export const TransactionItem: React.FC<TransactionItemProps> = ({
   }
 
   if (isTransfer) {
-    sourceName = `${account?.name || 'Account'} → ${toAccount?.name || 'Account'}`;
+    const toCard = cards.find(c => c.id === transaction.to_account_id || (transaction.card_id === c.id && c.type === 'credit'));
+    const destName = toCard ? `${toCard.name} (Credit Card)` : (toAccount?.name || 'Account');
+    sourceName = `${account?.name || 'Bank'} → ${destName}`;
   }
 
   const isDifferentCurrency = transaction.currency !== baseCurrency;
