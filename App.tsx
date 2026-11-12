@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   StyleSheet,
   View,
@@ -9,6 +9,7 @@ import {
   RefreshControl,
   useWindowDimensions,
   Platform,
+  Modal,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -22,6 +23,7 @@ import {
   Target,
   BarChart3,
   Settings,
+  Trash2,
 } from 'lucide-react-native';
 
 import { CozyTheme } from './src/theme/colors';
@@ -65,7 +67,7 @@ import { AddRecurringBillModal } from './src/components/AddRecurringBillModal';
 import { AnalyticsView } from './src/components/AnalyticsView';
 
 import { formatMoney } from './src/utils/currency';
-import { triggerLightHaptic, triggerSuccessHaptic } from './src/utils/haptics';
+import { triggerLightHaptic, triggerSuccessHaptic, triggerMediumHaptic, triggerErrorHaptic } from './src/utils/haptics';
 
 function MainAppContent() {
   const insets = useSafeAreaInsets();
@@ -85,6 +87,10 @@ function MainAppContent() {
   const [searchQuery, setSearchQuery] = useState('');
   const [dateFilter, setDateFilter] = useState<DateFilterType>('all');
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
+  const [typeFilter, setTypeFilter] = useState<'all' | 'expense' | 'income' | 'transfer'>('all');
+
+  // Destructive Action Confirmation
+  const [deleteConfirmTx, setDeleteConfirmTx] = useState<Transaction | null>(null);
 
   // Sub-page selection
   const [selectedEntity, setSelectedEntity] = useState<Account | Card | null>(null);
@@ -101,7 +107,7 @@ function MainAppContent() {
       const accs = getAllAccounts();
       const crds = getAllCards();
       const cats = getAllCategories();
-      const txs = getAllTransactions(300);
+      const txs = getAllTransactions(2000);
       const bills = getAllRecurringBills();
       const curr = getBaseCurrency();
 
@@ -128,8 +134,11 @@ function MainAppContent() {
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
+    triggerLightHaptic();
     loadData();
-    setRefreshing(false);
+    setTimeout(() => {
+      setRefreshing(false);
+    }, 250);
   }, [loadData]);
 
   // Transaction Handlers
@@ -142,8 +151,25 @@ function MainAppContent() {
     loadData();
   };
 
+  const handlePromptDelete = (txId: string) => {
+    const tx = transactions.find((t) => t.id === txId);
+    if (tx) {
+      triggerMediumHaptic();
+      setDeleteConfirmTx(tx);
+    }
+  };
+
+  const handleConfirmDelete = () => {
+    if (!deleteConfirmTx) return;
+    deleteTransaction(deleteConfirmTx.id);
+    triggerSuccessHaptic();
+    setDeleteConfirmTx(null);
+    loadData();
+  };
+
   const handleDeleteTransaction = (txId: string) => {
     deleteTransaction(txId);
+    triggerSuccessHaptic();
     loadData();
   };
 
@@ -238,72 +264,81 @@ function MainAppContent() {
     loadData();
   };
 
-  // Monthly stats calculations
+  // O(1) Lookups Maps for high performance
+  const accountsMap = useMemo(() => new Map(accounts.map((a) => [a.id, a])), [accounts]);
+  const cardsMap = useMemo(() => new Map(cards.map((c) => [c.id, c])), [cards]);
+  const categoriesMap = useMemo(() => new Map(categories.map((c) => [c.id, c])), [categories]);
+
+  // Monthly stats calculations (single pass)
   const now = new Date();
   const currentYear = now.getFullYear();
   const currentMonth = now.getMonth();
 
-  const monthExpenseCents = transactions
-    .filter((t) => {
-      if (t.type !== 'expense') return false;
+  const { monthExpenseCents, monthIncomeCents } = useMemo(() => {
+    let expense = 0;
+    let income = 0;
+    for (const t of transactions) {
       const d = new Date(t.date);
-      return d.getFullYear() === currentYear && d.getMonth() === currentMonth;
-    })
-    .reduce((sum, t) => sum + t.base_amount_cents, 0);
+      if (d.getFullYear() === currentYear && d.getMonth() === currentMonth) {
+        if (t.type === 'expense') expense += t.base_amount_cents;
+        else if (t.type === 'income') income += t.base_amount_cents;
+      }
+    }
+    return { monthExpenseCents: expense, monthIncomeCents: income };
+  }, [transactions, currentYear, currentMonth]);
 
-  const monthIncomeCents = transactions
-    .filter((t) => {
-      if (t.type !== 'income') return false;
-      const d = new Date(t.date);
-      return d.getFullYear() === currentYear && d.getMonth() === currentMonth;
-    })
-    .reduce((sum, t) => sum + t.base_amount_cents, 0);
+  // Memoized filtered transactions with O(1) lookup
+  const filteredTransactions = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    const hasQuery = q.length > 0;
+    const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    const lastMonthDate = new Date(currentYear, currentMonth - 1, 1);
 
-  // Filtered transactions for the ledger view
-  const filteredTransactions = transactions.filter((tx) => {
-    if (searchQuery.trim().length > 0) {
-      const q = searchQuery.toLowerCase();
-      const noteMatch = tx.note ? tx.note.toLowerCase().includes(q) : false;
-      const cat = categories.find((c) => c.id === tx.category_id);
-      const catMatch = cat ? cat.name.toLowerCase().includes(q) : false;
-      const acc = accounts.find((a) => a.id === tx.account_id);
-      const accMatch = acc ? acc.name.toLowerCase().includes(q) : false;
-      const card = cards.find((c) => c.id === tx.card_id);
-      const cardMatch = card ? card.name.toLowerCase().includes(q) : false;
-      if (!noteMatch && !catMatch && !accMatch && !cardMatch) {
+    return transactions.filter((tx) => {
+      if (typeFilter !== 'all' && tx.type !== typeFilter) {
         return false;
       }
-    }
 
-    if (selectedCategoryId && tx.category_id !== selectedCategoryId) {
-      return false;
-    }
-
-    if (dateFilter !== 'all') {
-      const txDate = new Date(tx.date);
-
-      if (dateFilter === 'this_month') {
-        if (txDate.getFullYear() !== currentYear || txDate.getMonth() !== currentMonth) {
-          return false;
-        }
-      } else if (dateFilter === 'last_month') {
-        const lastMonthDate = new Date(currentYear, currentMonth - 1, 1);
-        if (
-          txDate.getFullYear() !== lastMonthDate.getFullYear() ||
-          txDate.getMonth() !== lastMonthDate.getMonth()
-        ) {
-          return false;
-        }
-      } else if (dateFilter === 'last_30_days') {
-        const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-        if (txDate < thirtyDaysAgo) {
+      if (hasQuery) {
+        const noteMatch = tx.note ? tx.note.toLowerCase().includes(q) : false;
+        const cat = tx.category_id ? categoriesMap.get(tx.category_id) : undefined;
+        const catMatch = cat ? cat.name.toLowerCase().includes(q) : false;
+        const acc = tx.account_id ? accountsMap.get(tx.account_id) : undefined;
+        const accMatch = acc ? acc.name.toLowerCase().includes(q) : false;
+        const card = tx.card_id ? cardsMap.get(tx.card_id) : undefined;
+        const cardMatch = card ? card.name.toLowerCase().includes(q) : false;
+        if (!noteMatch && !catMatch && !accMatch && !cardMatch) {
           return false;
         }
       }
-    }
 
-    return true;
-  });
+      if (selectedCategoryId && tx.category_id !== selectedCategoryId) {
+        return false;
+      }
+
+      if (dateFilter !== 'all') {
+        const txDate = new Date(tx.date);
+        if (dateFilter === 'this_month') {
+          if (txDate.getFullYear() !== currentYear || txDate.getMonth() !== currentMonth) {
+            return false;
+          }
+        } else if (dateFilter === 'last_month') {
+          if (
+            txDate.getFullYear() !== lastMonthDate.getFullYear() ||
+            txDate.getMonth() !== lastMonthDate.getMonth()
+          ) {
+            return false;
+          }
+        } else if (dateFilter === 'last_30_days') {
+          if (txDate < thirtyDaysAgo) {
+            return false;
+          }
+        }
+      }
+
+      return true;
+    });
+  }, [transactions, searchQuery, selectedCategoryId, dateFilter, typeFilter, accountsMap, cardsMap, categoriesMap, currentYear, currentMonth]);
 
   const scrollBottomPadding = Math.max(insets.bottom + 85, 95);
 
@@ -311,7 +346,8 @@ function MainAppContent() {
     <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
       <StatusBar style="light" />
 
-      {/* FIXED TOP APP BAR (Compact & Aligned) */}
+      <View style={styles.appContainer}>
+        {/* FIXED TOP APP BAR (Compact & Aligned) */}
       <View style={styles.topAppBar}>
         <View style={styles.brandGroup}>
           <Text style={styles.brandTitle}>Castra</Text>
@@ -454,6 +490,8 @@ function MainAppContent() {
                 onDateFilterChange={setDateFilter}
                 selectedCategoryId={selectedCategoryId}
                 onCategoryChange={setSelectedCategoryId}
+                selectedType={typeFilter}
+                onTypeChange={setTypeFilter}
                 categories={categories}
                 totalResults={filteredTransactions.length}
                 totalEntries={transactions.length}
@@ -504,8 +542,11 @@ function MainAppContent() {
                 accounts={accounts}
                 cards={cards}
                 categories={categories}
+                accountsMap={accountsMap}
+                cardsMap={cardsMap}
+                categoriesMap={categoriesMap}
                 baseCurrency={baseCurrency}
-                onDelete={handleDeleteTransaction}
+                onDelete={handlePromptDelete}
               />
             </View>
           )}
@@ -580,6 +621,7 @@ function MainAppContent() {
           <Text style={styles.fabText}>Add Entry</Text>
         </TouchableOpacity>
       </View>
+      </View>
 
       {/* Account / Card Detail Sub-Page (with balance adjuster) */}
       <AccountDetailModal
@@ -653,6 +695,39 @@ function MainAppContent() {
         onBaseCurrencyChange={handleBaseCurrencyChange}
         onDataReload={loadData}
       />
+
+      {/* Delete Confirmation Modal */}
+      <Modal visible={!!deleteConfirmTx} transparent animationType="fade">
+        <View style={styles.confirmOverlay}>
+          <View style={styles.confirmCard}>
+            <View style={styles.confirmHeader}>
+              <View style={styles.confirmIconCircle}>
+                <Trash2 size={18} color={CozyTheme.expense} />
+              </View>
+              <Text style={styles.confirmTitle}>Delete Entry?</Text>
+            </View>
+            <Text style={styles.confirmBody}>
+              {deleteConfirmTx
+                ? `Permanently delete "${deleteConfirmTx.note || 'this entry'}" of ${formatMoney(deleteConfirmTx.amount_cents, deleteConfirmTx.currency)}? This will adjust your account balance automatically.`
+                : 'Permanently remove this transaction?'}
+            </Text>
+            <View style={styles.confirmActions}>
+              <TouchableOpacity
+                style={styles.confirmCancelBtn}
+                onPress={() => {
+                  triggerLightHaptic();
+                  setDeleteConfirmTx(null);
+                }}
+              >
+                <Text style={styles.confirmCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.confirmDeleteBtn} onPress={handleConfirmDelete}>
+                <Text style={styles.confirmDeleteText}>Delete</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -671,6 +746,12 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: CozyTheme.background,
+  },
+  appContainer: {
+    flex: 1,
+    width: '100%',
+    maxWidth: 720,
+    alignSelf: 'center',
   },
   topAppBar: {
     flexDirection: 'row',
@@ -892,5 +973,72 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: CozyTheme.textInverse,
     letterSpacing: -0.2,
+  },
+  confirmOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  confirmCard: {
+    width: '100%',
+    maxWidth: 380,
+    backgroundColor: CozyTheme.surface,
+    borderRadius: 18,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: CozyTheme.border,
+  },
+  confirmHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 10,
+  },
+  confirmIconCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: CozyTheme.expenseSoft,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  confirmTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: CozyTheme.textPrimary,
+  },
+  confirmBody: {
+    fontSize: 13,
+    color: CozyTheme.textSecondary,
+    lineHeight: 18,
+    marginBottom: 18,
+  },
+  confirmActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 10,
+  },
+  confirmCancelBtn: {
+    paddingVertical: 9,
+    paddingHorizontal: 16,
+    borderRadius: 10,
+  },
+  confirmCancelText: {
+    color: CozyTheme.textSecondary,
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  confirmDeleteBtn: {
+    backgroundColor: CozyTheme.expense,
+    paddingVertical: 9,
+    paddingHorizontal: 16,
+    borderRadius: 10,
+  },
+  confirmDeleteText: {
+    color: CozyTheme.textInverse,
+    fontSize: 13,
+    fontWeight: '700',
   },
 });

@@ -7,7 +7,10 @@ import {
   TouchableOpacity,
   ScrollView,
   TextInput,
+  Platform,
+  KeyboardAvoidingView,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { X, Delete, Check } from 'lucide-react-native';
 import { Account, Card, Category, TransactionType } from '../types';
 import { CozyTheme } from '../theme/colors';
@@ -127,13 +130,17 @@ export const QuickAddModal: React.FC<QuickAddModalProps> = ({
     onClose();
   };
 
+  const insets = useSafeAreaInsets();
   const filteredCategories = categories.filter(c => c.type === (mode === 'income' ? 'income' : 'expense'));
   const hasSources = cards.length > 0 || accounts.length > 0;
 
   return (
     <Modal visible={visible} animationType="slide" transparent>
-      <View style={styles.modalOverlay}>
-        <View style={styles.modalContainer}>
+      <KeyboardAvoidingView
+        style={styles.modalOverlay}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        <View style={[styles.modalContainer, { paddingBottom: Math.max(insets.bottom + 12, 34) }]}>
           {/* Header */}
           <View style={styles.modalHeader}>
             <View style={styles.modeTabs}>
@@ -460,7 +467,7 @@ export const QuickAddModal: React.FC<QuickAddModalProps> = ({
             </Text>
           </TouchableOpacity>
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 };
@@ -482,6 +489,9 @@ const styles = StyleSheet.create({
     paddingTop: 16,
     paddingBottom: 34,
     paddingHorizontal: 16,
+    width: '100%',
+    maxWidth: 580,
+    alignSelf: 'center',
   },
   modalHeader: {
     flexDirection: 'row',

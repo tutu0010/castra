@@ -20,7 +20,7 @@ interface CardDeckProps {
   onAddPress: () => void;
 }
 
-export const CardDeck: React.FC<CardDeckProps> = ({
+export const CardDeck: React.FC<CardDeckProps> = React.memo(({
   accounts,
   cards,
   onPressEntity,
@@ -195,7 +195,7 @@ export const CardDeck: React.FC<CardDeckProps> = ({
       )}
     </View>
   );
-};
+});
 
 const styles = StyleSheet.create({
   container: {

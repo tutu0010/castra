@@ -7,6 +7,8 @@ import {
   TextInput,
   TouchableOpacity,
   ScrollView,
+  Platform,
+  KeyboardAvoidingView,
 } from 'react-native';
 import { X, Calendar, Check, Repeat, CreditCard, Landmark } from 'lucide-react-native';
 import { CozyTheme } from '../theme/colors';
@@ -81,8 +83,12 @@ export const AddRecurringBillModal: React.FC<AddRecurringBillModalProps> = ({
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet">
-      <View style={styles.container}>
-        {/* Header */}
+      <KeyboardAvoidingView
+        style={{ flex: 1, backgroundColor: CozyTheme.background }}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        <View style={styles.container}>
+          {/* Header */}
         <View style={styles.header}>
           <View style={styles.headerTitleGroup}>
             <Repeat size={20} color={CozyTheme.textPrimary} />
@@ -99,7 +105,11 @@ export const AddRecurringBillModal: React.FC<AddRecurringBillModalProps> = ({
           </TouchableOpacity>
         </View>
 
-        <ScrollView showsVerticalScrollIndicator={false} style={styles.scroll}>
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          style={styles.scroll}
+          keyboardShouldPersistTaps="handled"
+        >
           {/* Subscription Name */}
           <Text style={styles.inputLabel}>Bill / Subscription Name</Text>
           <View style={styles.inputBox}>
@@ -252,6 +262,7 @@ export const AddRecurringBillModal: React.FC<AddRecurringBillModalProps> = ({
           </TouchableOpacity>
         </ScrollView>
       </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 };
@@ -262,6 +273,9 @@ const styles = StyleSheet.create({
     backgroundColor: CozyTheme.background,
     paddingTop: 16,
     paddingHorizontal: 16,
+    width: '100%',
+    maxWidth: 640,
+    alignSelf: 'center',
   },
   header: {
     flexDirection: 'row',

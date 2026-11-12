@@ -19,33 +19,49 @@ interface FilterSearchBarProps {
   onDateFilterChange: (filter: DateFilterType) => void;
   selectedCategoryId: string | null;
   onCategoryChange: (categoryId: string | null) => void;
+  selectedType?: 'all' | 'expense' | 'income' | 'transfer';
+  onTypeChange?: (type: 'all' | 'expense' | 'income' | 'transfer') => void;
   categories: Category[];
   totalResults: number;
   totalEntries: number;
 }
 
-export const FilterSearchBar: React.FC<FilterSearchBarProps> = ({
+export const FilterSearchBar: React.FC<FilterSearchBarProps> = React.memo(({
   searchQuery,
   onSearchChange,
   dateFilter,
   onDateFilterChange,
   selectedCategoryId,
   onCategoryChange,
+  selectedType = 'all',
+  onTypeChange,
   categories,
   totalResults,
   totalEntries,
 }) => {
-  const isFilterActive = searchQuery.trim().length > 0 || dateFilter !== 'all' || selectedCategoryId !== null;
+  const isFilterActive =
+    searchQuery.trim().length > 0 ||
+    dateFilter !== 'all' ||
+    selectedCategoryId !== null ||
+    selectedType !== 'all';
 
   const handleReset = () => {
     triggerLightHaptic();
     onSearchChange('');
     onDateFilterChange('all');
     onCategoryChange(null);
+    if (onTypeChange) onTypeChange('all');
   };
 
+  const TYPE_OPTIONS: { id: 'all' | 'expense' | 'income' | 'transfer'; label: string }[] = [
+    { id: 'all', label: 'All Types' },
+    { id: 'expense', label: 'Expenses' },
+    { id: 'income', label: 'Income' },
+    { id: 'transfer', label: 'Transfers' },
+  ];
+
   const DATE_OPTIONS: { id: DateFilterType; label: string }[] = [
-    { id: 'all', label: 'All' },
+    { id: 'all', label: 'Any Date' },
     { id: 'this_month', label: 'This Month' },
     { id: 'last_month', label: 'Last Month' },
     { id: 'last_30_days', label: '30 Days' },
@@ -83,6 +99,29 @@ export const FilterSearchBar: React.FC<FilterSearchBarProps> = ({
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.horizontalPills}
       >
+        {/* Type Filter Pills */}
+        {onTypeChange &&
+          TYPE_OPTIONS.map((opt) => {
+            const isSelected = selectedType === opt.id;
+            return (
+              <TouchableOpacity
+                key={opt.id}
+                style={[styles.pill, isSelected && styles.pillSelected]}
+                onPress={() => {
+                  triggerLightHaptic();
+                  onTypeChange(opt.id);
+                }}
+                activeOpacity={0.7}
+              >
+                <Text style={[styles.pillText, isSelected && styles.pillTextSelected]}>
+                  {opt.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+
+        <View style={styles.separator} />
+
         {DATE_OPTIONS.map((opt) => {
           const isSelected = dateFilter === opt.id;
           return (
@@ -133,7 +172,7 @@ export const FilterSearchBar: React.FC<FilterSearchBarProps> = ({
       </ScrollView>
     </View>
   );
-};
+});
 
 const styles = StyleSheet.create({
   container: {

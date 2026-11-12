@@ -11,7 +11,7 @@ interface SummaryHeaderProps {
   baseCurrency: string;
 }
 
-export const SummaryHeader: React.FC<SummaryHeaderProps> = ({
+export const SummaryHeader: React.FC<SummaryHeaderProps> = React.memo(({
   accounts,
   cards,
   baseCurrency,
@@ -78,7 +78,7 @@ export const SummaryHeader: React.FC<SummaryHeaderProps> = ({
       </View>
     </View>
   );
-};
+});
 
 const styles = StyleSheet.create({
   container: {

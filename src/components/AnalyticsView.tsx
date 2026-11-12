@@ -51,6 +51,23 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
     ? Math.round((netSavingsCents / totalIncomeCents) * 100)
     : (totalExpenseCents > 0 ? -100 : 0);
 
+  // Month-over-month trend comparison
+  const lastMonthYear = currentMonth === 0 ? currentYear - 1 : currentYear;
+  const lastMonthIdx = currentMonth === 0 ? 11 : currentMonth - 1;
+  const lastMonthExpenseCents = transactions
+    .filter((t) => {
+      if (t.type !== 'expense') return false;
+      const d = new Date(t.date);
+      return d.getFullYear() === lastMonthYear && d.getMonth() === lastMonthIdx;
+    })
+    .reduce((sum, t) => sum + t.base_amount_cents, 0);
+
+  const hasLastMonthData = lastMonthExpenseCents > 0;
+  const momDiffCents = totalExpenseCents - lastMonthExpenseCents;
+  const momDiffPct = hasLastMonthData ? Math.round((momDiffCents / lastMonthExpenseCents) * 100) : 0;
+  const currentDay = Math.max(1, now.getDate());
+  const dailySpendVelocityCents = Math.round(totalExpenseCents / currentDay);
+
   // Category breakdown
   const categoryMap = new Map<string, Category>(categories.map((c) => [c.id, c]));
 
@@ -172,6 +189,44 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
           </Text>
         </View>
       </View>
+
+      {/* Month-over-Month Velocity & Trend */}
+      {timeframe === 'this_month' && (
+        <View style={styles.trendRow}>
+          <View style={styles.trendItem}>
+            <Text style={styles.trendLabel}>Daily Velocity</Text>
+            <Text style={styles.trendValue}>
+              {formatMoney(dailySpendVelocityCents, baseCurrency)}
+              <Text style={styles.trendSub}> / day</Text>
+            </Text>
+          </View>
+
+          <View style={styles.trendDivider} />
+
+          <View style={styles.trendItem}>
+            <Text style={styles.trendLabel}>vs Last Month</Text>
+            {hasLastMonthData ? (
+              <View style={styles.trendDiffRow}>
+                {momDiffPct <= 0 ? (
+                  <ArrowDownRight size={12} color={CozyTheme.income} />
+                ) : (
+                  <ArrowUpRight size={12} color={CozyTheme.expense} />
+                )}
+                <Text
+                  style={[
+                    styles.trendValue,
+                    { color: momDiffPct <= 0 ? CozyTheme.income : CozyTheme.expense },
+                  ]}
+                >
+                  {momDiffPct <= 0 ? `${Math.abs(momDiffPct)}% less` : `+${momDiffPct}% more`}
+                </Text>
+              </View>
+            ) : (
+              <Text style={[styles.trendValue, { color: CozyTheme.textTertiary }]}>No baseline</Text>
+            )}
+          </View>
+        </View>
+      )}
 
       {/* Cash Flow Visual Bar Comparison */}
       <View style={styles.chartBox}>
@@ -325,6 +380,52 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingBottom: 110,
     paddingTop: 8,
+    maxWidth: 680,
+    width: '100%',
+    alignSelf: 'center',
+  },
+  trendRow: {
+    flexDirection: 'row',
+    backgroundColor: CozyTheme.surface,
+    borderRadius: 14,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: CozyTheme.border,
+    marginBottom: 10,
+    alignItems: 'center',
+  },
+  trendItem: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  trendLabel: {
+    fontSize: 10,
+    color: CozyTheme.textTertiary,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 3,
+  },
+  trendValue: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: CozyTheme.textPrimary,
+  },
+  trendSub: {
+    fontSize: 10,
+    color: CozyTheme.textSecondary,
+    fontWeight: '400',
+  },
+  trendDivider: {
+    width: 1,
+    height: 24,
+    backgroundColor: CozyTheme.border,
+    marginHorizontal: 8,
+  },
+  trendDiffRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
   },
   timeframeRow: {
     flexDirection: 'row',

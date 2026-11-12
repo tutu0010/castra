@@ -166,6 +166,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 18,
     paddingBottom: 36,
+    width: '100%',
+    maxWidth: 540,
+    alignSelf: 'center',
   },
   header: {
     flexDirection: 'row',

@@ -7,6 +7,8 @@ import {
   TouchableOpacity,
   ScrollView,
   TextInput,
+  Platform,
+  KeyboardAvoidingView,
 } from 'react-native';
 import { X, Check, Trash2, PiggyBank, Target } from 'lucide-react-native';
 import { CozyTheme } from '../theme/colors';
@@ -71,8 +73,12 @@ export const SetBudgetModal: React.FC<SetBudgetModalProps> = ({
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet">
-      <View style={styles.container}>
-        {/* Header */}
+      <KeyboardAvoidingView
+        style={{ flex: 1, backgroundColor: CozyTheme.background }}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        <View style={styles.container}>
+          {/* Header */}
         <View style={styles.header}>
           <View style={styles.headerTitleGroup}>
             <Target size={20} color={CozyTheme.textPrimary} />
@@ -89,7 +95,11 @@ export const SetBudgetModal: React.FC<SetBudgetModalProps> = ({
           </TouchableOpacity>
         </View>
 
-        <ScrollView showsVerticalScrollIndicator={false} style={styles.scroll}>
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          style={styles.scroll}
+          keyboardShouldPersistTaps="handled"
+        >
           {/* Category Picker Chips */}
           <Text style={styles.sectionLabel}>Select Category to Set Limit</Text>
           <View style={styles.catGrid}>
@@ -201,6 +211,7 @@ export const SetBudgetModal: React.FC<SetBudgetModalProps> = ({
           </View>
         </ScrollView>
       </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 };
@@ -211,6 +222,9 @@ const styles = StyleSheet.create({
     backgroundColor: CozyTheme.background,
     paddingTop: 16,
     paddingHorizontal: 16,
+    width: '100%',
+    maxWidth: 640,
+    alignSelf: 'center',
   },
   header: {
     flexDirection: 'row',

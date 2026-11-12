@@ -25,6 +25,9 @@ interface TransactionItemProps {
   accounts: Account[];
   cards: Card[];
   categories: Category[];
+  accountsMap?: Map<string, Account>;
+  cardsMap?: Map<string, Card>;
+  categoriesMap?: Map<string, Category>;
   baseCurrency: string;
   onDelete: (id: string) => void;
 }
@@ -42,18 +45,32 @@ const ICON_MAP: Record<string, LucideIcon> = {
   tag: Tag,
 };
 
-export const TransactionItem: React.FC<TransactionItemProps> = ({
+export const TransactionItem: React.FC<TransactionItemProps> = React.memo(({
   transaction,
   accounts,
   cards,
   categories,
+  accountsMap,
+  cardsMap,
+  categoriesMap,
   baseCurrency,
   onDelete,
 }) => {
-  const category = categories.find(c => c.id === transaction.category_id);
-  const card = cards.find(c => c.id === transaction.card_id);
-  const account = accounts.find(a => a.id === transaction.account_id);
-  const toAccount = accounts.find(a => a.id === transaction.to_account_id);
+  const category = categoriesMap
+    ? (transaction.category_id ? categoriesMap.get(transaction.category_id) : undefined)
+    : categories.find(c => c.id === transaction.category_id);
+
+  const card = cardsMap
+    ? (transaction.card_id ? cardsMap.get(transaction.card_id) : undefined)
+    : cards.find(c => c.id === transaction.card_id);
+
+  const account = accountsMap
+    ? (transaction.account_id ? accountsMap.get(transaction.account_id) : undefined)
+    : accounts.find(a => a.id === transaction.account_id);
+
+  const toAccount = accountsMap
+    ? (transaction.to_account_id ? accountsMap.get(transaction.to_account_id) : undefined)
+    : accounts.find(a => a.id === transaction.to_account_id);
 
   const IconComponent = category?.icon ? ICON_MAP[category.icon] || Tag : Tag;
   const isExpense = transaction.type === 'expense';
@@ -150,7 +167,7 @@ export const TransactionItem: React.FC<TransactionItemProps> = ({
       </TouchableOpacity>
     </View>
   );
-};
+});
 
 const styles = StyleSheet.create({
   container: {

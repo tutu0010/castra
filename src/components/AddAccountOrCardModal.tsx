@@ -7,6 +7,8 @@ import {
   TouchableOpacity,
   TextInput,
   ScrollView,
+  Platform,
+  KeyboardAvoidingView,
 } from 'react-native';
 import { X, Check } from 'lucide-react-native';
 import { Account, Card } from '../types';
@@ -98,8 +100,12 @@ export const AddAccountOrCardModal: React.FC<AddAccountOrCardModalProps> = ({
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet">
-      <View style={styles.container}>
-        {/* Header */}
+      <KeyboardAvoidingView
+        style={{ flex: 1, backgroundColor: CozyTheme.background }}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        <View style={styles.container}>
+          {/* Header */}
         <View style={styles.header}>
           <Text style={styles.headerTitle}>Add New Entity</Text>
           <TouchableOpacity
@@ -137,7 +143,11 @@ export const AddAccountOrCardModal: React.FC<AddAccountOrCardModalProps> = ({
           ))}
         </View>
 
-        <ScrollView style={styles.formScroll} showsVerticalScrollIndicator={false}>
+        <ScrollView
+          style={styles.formScroll}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
           {/* Name */}
           <Text style={styles.inputLabel}>Name / Title</Text>
           <TextInput
@@ -301,6 +311,7 @@ export const AddAccountOrCardModal: React.FC<AddAccountOrCardModalProps> = ({
           <Text style={styles.submitButtonText}>Save Entity</Text>
         </TouchableOpacity>
       </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 };
@@ -309,9 +320,12 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: CozyTheme.background,
-    paddingHorizontal: 16,
+    paddingHorizontal: 20,
     paddingTop: 16,
     paddingBottom: 36,
+    width: '100%',
+    maxWidth: 640,
+    alignSelf: 'center',
   },
   header: {
     flexDirection: 'row',

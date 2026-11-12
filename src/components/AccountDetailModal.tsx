@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -71,15 +71,51 @@ export const AccountDetailModal: React.FC<AccountDetailModalProps> = ({
   const utilizationRatio = cardLimit > 0 ? Math.min(balanceCents / cardLimit, 1.0) : 0;
   const utilizationPct = Math.round(utilizationRatio * 100);
 
+  // O(1) Lookup Maps
+  const accountsMap = useMemo(() => new Map(accounts.map((a) => [a.id, a])), [accounts]);
+  const cardsMap = useMemo(() => new Map(cards.map((c) => [c.id, c])), [cards]);
+  const categoriesMap = useMemo(() => new Map(categories.map((c) => [c.id, c])), [categories]);
+
   // Filter transactions belonging to this account/card
-  const entityTransactions = transactions.filter(
-    t => t.account_id === entity.id || t.card_id === entity.id || t.to_account_id === entity.id
-  );
+  const entityTransactions = useMemo(() => {
+    return transactions.filter(
+      t => t.account_id === entity.id || t.card_id === entity.id || t.to_account_id === entity.id
+    );
+  }, [transactions, entity.id]);
 
   const handleDelete = () => {
     triggerLightHaptic();
-    onDeleteEntity(entity.id, isCard);
-    onClose();
+    Alert.alert(
+      `Delete ${isCard ? 'Card' : 'Account'}`,
+      `Are you sure you want to permanently delete "${entity.name}"? Transactions referring to this ${isCard ? 'card' : 'account'} may lose their source reference.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => {
+            onDeleteEntity(entity.id, isCard);
+            onClose();
+          },
+        },
+      ]
+    );
+  };
+
+  const handlePromptDeleteTx = (txId: string) => {
+    const tx = transactions.find((t) => t.id === txId);
+    Alert.alert(
+      'Delete Entry',
+      `Permanently delete "${tx?.note || 'this entry'}"? This will automatically update your ledger balances.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => onDeleteTransaction(txId),
+        },
+      ]
+    );
   };
 
   return (
@@ -236,8 +272,11 @@ export const AccountDetailModal: React.FC<AccountDetailModalProps> = ({
                   accounts={accounts}
                   cards={cards}
                   categories={categories}
+                  accountsMap={accountsMap}
+                  cardsMap={cardsMap}
+                  categoriesMap={categoriesMap}
                   baseCurrency={baseCurrency}
-                  onDelete={onDeleteTransaction}
+                  onDelete={handlePromptDeleteTx}
                 />
               ))
             )}
@@ -261,6 +300,9 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: CozyTheme.background,
     paddingTop: 14,
+    width: '100%',
+    maxWidth: 680,
+    alignSelf: 'center',
   },
   navBar: {
     flexDirection: 'row',

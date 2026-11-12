@@ -9,6 +9,7 @@ import {
   Switch,
   Platform,
   TextInput,
+  KeyboardAvoidingView,
 } from 'react-native';
 import {
   X,
@@ -344,7 +345,10 @@ export const SettingsBackupModal: React.FC<SettingsBackupModalProps> = ({
 
       {/* Passphrase Entry Modal */}
       <Modal visible={passphraseModalVisible} transparent animationType="fade">
-        <View style={styles.passphraseOverlay}>
+        <KeyboardAvoidingView
+          style={styles.passphraseOverlay}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        >
           <View style={styles.passphraseCard}>
             <View style={styles.passphraseHeader}>
               <KeyRound size={20} color={CozyTheme.textPrimary} />
@@ -379,7 +383,7 @@ export const SettingsBackupModal: React.FC<SettingsBackupModalProps> = ({
               </TouchableOpacity>
             </View>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
     </Modal>
   );
@@ -390,7 +394,10 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: CozyTheme.background,
     paddingTop: 16,
-    paddingHorizontal: 16,
+    paddingHorizontal: 20,
+    width: '100%',
+    maxWidth: 680,
+    alignSelf: 'center',
   },
   header: {
     flexDirection: 'row',
