@@ -13,6 +13,7 @@ import {
   ArrowRightLeft,
   Trash2,
   Tag,
+  LucideIcon,
 } from 'lucide-react-native';
 import { Transaction, Account, Card, Category } from '../types';
 import { CozyTheme } from '../theme/colors';
@@ -28,7 +29,7 @@ interface TransactionItemProps {
   onDelete: (id: string) => void;
 }
 
-const ICON_MAP: Record<string, any> = {
+const ICON_MAP: Record<string, LucideIcon> = {
   utensils: Utensils,
   'shopping-cart': ShoppingCart,
   coffee: Coffee,

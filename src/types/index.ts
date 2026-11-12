@@ -55,6 +55,8 @@ export interface Transaction {
   created_at: string;
 }
 
+export type NewTransactionInput = Omit<Transaction, 'id' | 'created_at' | 'base_amount_cents' | 'exchange_rate'>;
+
 export interface RecurringBill {
   id: string;
   name: string;

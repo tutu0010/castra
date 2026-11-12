@@ -34,7 +34,7 @@ export function parseMoneyToMinorUnits(
   if (!inputStr || typeof inputStr !== 'string') return 0;
   const cleanStr = inputStr.replace(/,/g, '').trim();
   const val = parseFloat(cleanStr);
-  if (isNaN(val) || !isFinite(val)) return 0;
+  if (isNaN(val) || !isFinite(val) || val <= 0) return 0;
 
   const decimals = getCurrencyDecimals(currencyCode);
   const factor = Math.pow(10, decimals);

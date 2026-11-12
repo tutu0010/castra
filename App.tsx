@@ -25,7 +25,7 @@ import {
 } from 'lucide-react-native';
 
 import { CozyTheme } from './src/theme/colors';
-import { Account, Card, Category, Transaction, RecurringBill, DateFilterType } from './src/types';
+import { Account, Card, Category, Transaction, RecurringBill, DateFilterType, NewTransactionInput } from './src/types';
 import {
   getAllAccounts,
   getAllCards,
@@ -133,7 +133,7 @@ function MainAppContent() {
   }, [loadData]);
 
   // Transaction Handlers
-  const handleSaveTransaction = (txData: any) => {
+  const handleSaveTransaction = (txData: NewTransactionInput) => {
     const id = `tx_${Date.now()}`;
     addTransaction({
       id,
@@ -530,6 +530,8 @@ function MainAppContent() {
           <BudgetPaceCard
             categories={categories}
             transactions={transactions}
+            accounts={accounts}
+            recurringBills={recurringBills}
             baseCurrency={baseCurrency}
             onOpenBudgetModal={() => setSetBudgetVisible(true)}
           />

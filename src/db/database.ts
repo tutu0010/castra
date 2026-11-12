@@ -1,7 +1,7 @@
 import * as SQLite from 'expo-sqlite';
 import { Platform } from 'react-native';
 import { Account, Card, Category, Transaction, RecurringBill, DatabaseBackup } from '../types';
-import { convertCurrency } from '../utils/currency';
+import { convertCurrency, getCurrencyDecimals } from '../utils/currency';
 
 const now = new Date().toISOString();
 
@@ -624,12 +624,17 @@ export function deleteRecurringBill(id: string): void {
 // ----------------------------------------------------
 export function getAllTransactions(limit: number = 2000): Transaction[] {
   if (Platform.OS === 'web') {
-    return getWebStore().transactions.slice(0, limit);
+    return limit > 0 ? getWebStore().transactions.slice(0, limit) : getWebStore().transactions;
   }
   const db = getDatabase();
+  if (limit > 0) {
+    return db?.getAllSync<Transaction>(
+      'SELECT * FROM transactions ORDER BY date DESC, created_at DESC LIMIT ?;',
+      [limit]
+    ) || [];
+  }
   return db?.getAllSync<Transaction>(
-    'SELECT * FROM transactions ORDER BY date DESC, created_at DESC LIMIT ?;',
-    [limit]
+    'SELECT * FROM transactions ORDER BY date DESC, created_at DESC;'
   ) || [];
 }
 
@@ -805,7 +810,7 @@ export function exportDatabaseJSON(): string {
   const accounts = getAllAccounts();
   const cards = getAllCards();
   const categories = getAllCategories();
-  const transactions = getAllTransactions(100000);
+  const transactions = getAllTransactions(-1);
   const recurring_bills = getAllRecurringBills();
   const base_currency = getBaseCurrency();
 
@@ -824,7 +829,7 @@ export function exportDatabaseJSON(): string {
 }
 
 export function exportTransactionsCSV(): string {
-  const transactions = getAllTransactions(100000);
+  const transactions = getAllTransactions(-1);
   const accounts = getAllAccounts();
   const cards = getAllCards();
   const categories = getAllCategories();
@@ -835,7 +840,8 @@ export function exportTransactionsCSV(): string {
 
   const headers = ['Date', 'Type', 'Amount', 'Currency', 'Base Amount (Cents)', 'Account/Card', 'Category', 'Note'];
   const rows = transactions.map(tx => {
-    const formattedAmount = (tx.amount_cents / 100).toFixed(2);
+    const decimals = getCurrencyDecimals(tx.currency);
+    const formattedAmount = (tx.amount_cents / Math.pow(10, decimals)).toFixed(decimals);
     const source = tx.card_id
       ? cardMap.get(tx.card_id) || 'Card'
       : tx.account_id

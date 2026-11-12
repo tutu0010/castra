@@ -2,6 +2,7 @@ import { Platform } from 'react-native';
 import * as Sharing from 'expo-sharing';
 import * as DocumentPicker from 'expo-document-picker';
 import { exportDatabaseJSON, exportTransactionsCSV, importDatabaseJSON } from '../db/database';
+import { encryptBackup, decryptBackup, isEncryptedBackup } from './crypto';
 
 export async function exportCSVFile(): Promise<boolean> {
   try {
@@ -41,10 +42,15 @@ export async function exportCSVFile(): Promise<boolean> {
   }
 }
 
-export async function exportJSONBackup(): Promise<boolean> {
+export async function exportJSONBackup(passphrase?: string): Promise<boolean> {
   try {
-    const jsonData = exportDatabaseJSON();
-    const fileName = `castra_backup_${new Date().toISOString().slice(0, 10)}.json`;
+    let jsonData = exportDatabaseJSON();
+    let fileName = `castra_backup_${new Date().toISOString().slice(0, 10)}.json`;
+
+    if (passphrase && passphrase.trim().length > 0) {
+      jsonData = await encryptBackup(jsonData, passphrase.trim());
+      fileName = `castra_encrypted_backup_${new Date().toISOString().slice(0, 10)}.castra.json`;
+    }
 
     if (Platform.OS === 'web') {
       const blob = new Blob([jsonData], { type: 'application/json;charset=utf-8;' });
@@ -67,7 +73,9 @@ export async function exportJSONBackup(): Promise<boolean> {
     if (isAvailable) {
       await Sharing.shareAsync(file.uri, {
         mimeType: 'application/json',
-        dialogTitle: 'Export Castra Database Backup (JSON)',
+        dialogTitle: passphrase
+          ? 'Export Password-Protected Castra Backup (AES-GCM)'
+          : 'Export Castra Database Backup (JSON)',
         UTI: 'public.json',
       });
       return true;
@@ -79,51 +87,71 @@ export async function exportJSONBackup(): Promise<boolean> {
   }
 }
 
-export async function pickAndRestoreJSONBackup(): Promise<{ success: boolean; message: string }> {
+export async function pickAndRestoreJSONBackup(
+  promptPassphrase?: () => Promise<string | null>
+): Promise<{ success: boolean; message: string }> {
   try {
+    let fileText = '';
+
     if (Platform.OS === 'web') {
-      return new Promise(resolve => {
+      fileText = await new Promise<string>((resolve, reject) => {
         const input = document.createElement('input');
         input.type = 'file';
         input.accept = '.json,application/json';
         input.onchange = async (e: any) => {
           const file = e.target.files?.[0];
           if (!file) {
-            resolve({ success: false, message: 'No file selected' });
+            reject(new Error('No file selected'));
             return;
           }
           const text = await file.text();
-          const ok = importDatabaseJSON(text);
-          resolve(
-            ok
-              ? { success: true, message: 'Backup restored successfully!' }
-              : { success: false, message: 'Invalid backup file format' }
-          );
+          resolve(text);
         };
         input.click();
       });
-    }
-
-    const result = await DocumentPicker.getDocumentAsync({
-      type: ['application/json', 'text/*', '*/*'],
-      copyToCacheDirectory: true,
-    });
-
-    if (result.canceled || !result.assets || result.assets.length === 0) {
-      return { success: false, message: 'Selection cancelled' };
-    }
-
-    const pickedFile = result.assets[0];
-    const { File } = require('expo-file-system');
-    const file = new File(pickedFile.uri);
-    const text = await file.text();
-
-    const success = importDatabaseJSON(text);
-    if (success) {
-      return { success: true, message: 'Backup restored successfully!' };
     } else {
-      return { success: false, message: 'Invalid Castra backup file format.' };
+      const result = await DocumentPicker.getDocumentAsync({
+        type: ['application/json', 'text/*', '*/*'],
+        copyToCacheDirectory: true,
+      });
+
+      if (result.canceled || !result.assets || result.assets.length === 0) {
+        return { success: false, message: 'Selection cancelled' };
+      }
+
+      const pickedFile = result.assets[0];
+      const { File } = require('expo-file-system');
+      const file = new File(pickedFile.uri);
+      fileText = await file.text();
     }
+
+    // Check if the backup is encrypted
+    let jsonToImport = fileText;
+    try {
+      const parsed = JSON.parse(fileText);
+      if (isEncryptedBackup(parsed)) {
+        if (!promptPassphrase) {
+          return {
+            success: false,
+            message: 'Backup is encrypted. Passphrase input required.',
+          };
+        }
+        const passphrase = await promptPassphrase();
+        if (!passphrase) {
+          return { success: false, message: 'Restore cancelled (Passphrase needed).' };
+        }
+        jsonToImport = await decryptBackup(fileText, passphrase);
+      }
+    } catch (err: any) {
+      if (err?.message?.includes('Incorrect passphrase') || err?.message?.includes('corrupted')) {
+        return { success: false, message: 'Incorrect passphrase or corrupted backup.' };
+      }
+    }
+
+    const ok = importDatabaseJSON(jsonToImport);
+    return ok
+      ? { success: true, message: 'Backup restored successfully!' }
+      : { success: false, message: 'Invalid or malformed Castra backup file.' };
   } catch (error: any) {
     console.error('Failed to restore backup:', error);
     return { success: false, message: error?.message || 'Restore failed' };

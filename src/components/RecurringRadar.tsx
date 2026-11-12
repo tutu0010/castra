@@ -18,7 +18,7 @@ import {
 } from 'lucide-react-native';
 import { CozyTheme } from '../theme/colors';
 import { RecurringBill, Account, Card, Category } from '../types';
-import { formatMoney } from '../utils/currency';
+import { formatMoney, convertCurrency } from '../utils/currency';
 import { triggerLightHaptic, triggerSuccessHaptic } from '../utils/haptics';
 
 interface RecurringRadarProps {
@@ -285,8 +285,13 @@ export const RecurringRadar: React.FC<RecurringRadarProps> = ({
 
                   <View style={styles.amountCol}>
                     <Text style={styles.billAmount}>
-                      {formatMoney(bill.amount_cents, baseCurrency)}
+                      {formatMoney(bill.amount_cents, bill.currency || baseCurrency)}
                     </Text>
+                    {bill.currency && bill.currency !== baseCurrency ? (
+                      <Text style={styles.convertedApprox}>
+                        ~{formatMoney(convertCurrency(bill.amount_cents, bill.currency, baseCurrency).convertedCents, baseCurrency)}
+                      </Text>
+                    ) : null}
                     <Text style={styles.billFreq}>{bill.frequency}</Text>
                   </View>
                 </View>
@@ -513,6 +518,11 @@ const styles = StyleSheet.create({
     fontSize: 10,
     color: CozyTheme.textTertiary,
     textTransform: 'capitalize',
+    marginTop: 1,
+  },
+  convertedApprox: {
+    fontSize: 9,
+    color: CozyTheme.textTertiary,
     marginTop: 1,
   },
   billActionsRow: {

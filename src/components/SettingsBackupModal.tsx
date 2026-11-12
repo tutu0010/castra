@@ -8,6 +8,7 @@ import {
   ScrollView,
   Switch,
   Platform,
+  TextInput,
 } from 'react-native';
 import {
   X,
@@ -18,6 +19,8 @@ import {
   Shield,
   CheckCircle2,
   Fingerprint,
+  Lock,
+  KeyRound,
 } from 'lucide-react-native';
 import { CozyTheme } from '../theme/colors';
 import { SUPPORTED_CURRENCIES } from '../utils/currency';
@@ -46,6 +49,10 @@ export const SettingsBackupModal: React.FC<SettingsBackupModalProps> = ({
   const [biometricsActive, setBiometricsActive] = useState<boolean>(false);
   const [biometryType, setBiometryType] = useState<string>('Biometrics');
   const [biometricsAvailable, setBiometricsAvailable] = useState<boolean>(false);
+  const [passphraseModalVisible, setPassphraseModalVisible] = useState(false);
+  const [passphraseMode, setPassphraseMode] = useState<'export' | 'import'>('export');
+  const [passphraseInput, setPassphraseInput] = useState('');
+  const [resolver, setResolver] = useState<{ resolve: (pass: string | null) => void } | null>(null);
 
   useEffect(() => {
     if (visible) {
@@ -103,11 +110,56 @@ export const SettingsBackupModal: React.FC<SettingsBackupModalProps> = ({
     if (ok) triggerSuccessHaptic();
   };
 
+  const handleExportEncryptedJSON = () => {
+    triggerLightHaptic();
+    setPassphraseMode('export');
+    setPassphraseInput('');
+    setPassphraseModalVisible(true);
+  };
+
+  const handleConfirmPassphrase = async () => {
+    if (!passphraseInput || passphraseInput.length < 4) {
+      setStatusMessage('Passphrase must be at least 4 characters');
+      return;
+    }
+    setPassphraseModalVisible(false);
+
+    if (passphraseMode === 'export') {
+      setLoading(true);
+      setStatusMessage('Encrypting with AES-256-GCM...');
+      const ok = await exportJSONBackup(passphraseInput);
+      setLoading(false);
+      setStatusMessage(ok ? 'Encrypted Backup exported!' : 'Export cancelled or failed');
+      if (ok) triggerSuccessHaptic();
+    } else if (resolver) {
+      resolver.resolve(passphraseInput);
+      setResolver(null);
+    }
+  };
+
+  const handleCancelPassphrase = () => {
+    setPassphraseModalVisible(false);
+    if (resolver) {
+      resolver.resolve(null);
+      setResolver(null);
+    }
+  };
+
   const handleImportJSON = async () => {
     triggerLightHaptic();
     setLoading(true);
     setStatusMessage('Restoring backup...');
-    const res = await pickAndRestoreJSONBackup();
+
+    const promptPassphrase = () => {
+      return new Promise<string | null>((resolve) => {
+        setPassphraseMode('import');
+        setPassphraseInput('');
+        setResolver({ resolve });
+        setPassphraseModalVisible(true);
+      });
+    };
+
+    const res = await pickAndRestoreJSONBackup(promptPassphrase);
     setLoading(false);
     setStatusMessage(res.message);
     if (res.success) {
@@ -238,8 +290,21 @@ export const SettingsBackupModal: React.FC<SettingsBackupModalProps> = ({
             >
               <DownloadCloud size={18} color={CozyTheme.transfer} />
               <View style={{ flex: 1 }}>
-                <Text style={styles.rowButtonTitle}>Full JSON Backup</Text>
-                <Text style={styles.rowButtonSub}>Complete database snapshot</Text>
+                <Text style={styles.rowButtonTitle}>Standard JSON Backup</Text>
+                <Text style={styles.rowButtonSub}>Unencrypted database snapshot</Text>
+              </View>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.rowButton, { marginTop: 8 }]}
+              onPress={handleExportEncryptedJSON}
+              disabled={loading}
+              activeOpacity={0.7}
+            >
+              <Lock size={18} color={CozyTheme.income} />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.rowButtonTitle}>Encrypted Backup (AES-256)</Text>
+                <Text style={styles.rowButtonSub}>Password-protected with PBKDF2</Text>
               </View>
             </TouchableOpacity>
           </View>
@@ -260,9 +325,9 @@ export const SettingsBackupModal: React.FC<SettingsBackupModalProps> = ({
               <UploadCloud size={18} color={CozyTheme.expense} />
               <View style={{ flex: 1 }}>
                 <Text style={[styles.rowButtonTitle, { color: CozyTheme.expense }]}>
-                  Restore from JSON Backup
+                  Restore from Backup File
                 </Text>
-                <Text style={styles.rowButtonSub}>Overwrites current data with backup file</Text>
+                <Text style={styles.rowButtonSub}>Auto-detects plaintext or encrypted (.castra) files</Text>
               </View>
             </TouchableOpacity>
           </View>
@@ -271,11 +336,51 @@ export const SettingsBackupModal: React.FC<SettingsBackupModalProps> = ({
           <View style={styles.privacyCard}>
             <Shield size={18} color={CozyTheme.income} />
             <Text style={styles.privacyText}>
-              Castra is 100% offline & local-first. Your financial data is stored securely on this phone.
+              Castra is 100% offline & local-first. Your financial data is stored locally on this device in SQLite.
             </Text>
           </View>
         </ScrollView>
       </View>
+
+      {/* Passphrase Entry Modal */}
+      <Modal visible={passphraseModalVisible} transparent animationType="fade">
+        <View style={styles.passphraseOverlay}>
+          <View style={styles.passphraseCard}>
+            <View style={styles.passphraseHeader}>
+              <KeyRound size={20} color={CozyTheme.textPrimary} />
+              <Text style={styles.passphraseTitle}>
+                {passphraseMode === 'export' ? 'Set Backup Password' : 'Enter Backup Password'}
+              </Text>
+            </View>
+            <Text style={styles.passphraseSub}>
+              {passphraseMode === 'export'
+                ? 'Choose a passphrase to encrypt your financial snapshot with AES-GCM 256-bit.'
+                : 'This backup is encrypted. Enter the passphrase to decrypt and restore your ledger.'}
+            </Text>
+
+            <TextInput
+              style={styles.passphraseInput}
+              placeholder="Enter passphrase (min 4 chars)"
+              placeholderTextColor={CozyTheme.textTertiary}
+              secureTextEntry
+              value={passphraseInput}
+              onChangeText={setPassphraseInput}
+              autoFocus
+            />
+
+            <View style={styles.passphraseActions}>
+              <TouchableOpacity style={styles.passphraseCancelBtn} onPress={handleCancelPassphrase}>
+                <Text style={styles.passphraseCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.passphraseConfirmBtn} onPress={handleConfirmPassphrase}>
+                <Text style={styles.passphraseConfirmText}>
+                  {passphraseMode === 'export' ? 'Encrypt & Export' : 'Unlock & Restore'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </Modal>
   );
 };
@@ -433,5 +538,75 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: CozyTheme.textSecondary,
     lineHeight: 16,
+  },
+  passphraseOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  passphraseCard: {
+    width: '100%',
+    maxWidth: 380,
+    backgroundColor: CozyTheme.surface,
+    borderRadius: 18,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: CozyTheme.border,
+  },
+  passphraseHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 8,
+  },
+  passphraseTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: CozyTheme.textPrimary,
+  },
+  passphraseSub: {
+    fontSize: 12,
+    color: CozyTheme.textSecondary,
+    marginBottom: 16,
+    lineHeight: 16,
+  },
+  passphraseInput: {
+    backgroundColor: CozyTheme.surfaceElevated,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: CozyTheme.border,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    color: CozyTheme.textPrimary,
+    fontSize: 14,
+    marginBottom: 16,
+  },
+  passphraseActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 10,
+  },
+  passphraseCancelBtn: {
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 8,
+  },
+  passphraseCancelText: {
+    color: CozyTheme.textSecondary,
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  passphraseConfirmBtn: {
+    backgroundColor: CozyTheme.textPrimary,
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 8,
+  },
+  passphraseConfirmText: {
+    color: CozyTheme.textInverse,
+    fontSize: 13,
+    fontWeight: '700',
   },
 });
