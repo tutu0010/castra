@@ -9,7 +9,6 @@ import {
   Repeat,
   Plus,
   Check,
-  Calendar,
   CreditCard,
   Landmark,
   Trash2,
@@ -70,7 +69,7 @@ export const RecurringRadar: React.FC<RecurringRadarProps> = ({
       const a = accounts.find((acc) => acc.id === bill.account_id);
       return a ? a.name : 'Bank';
     }
-    return 'Default Account';
+    return 'Default';
   };
 
   const getCategoryColor = (catId?: string | null) => {
@@ -83,8 +82,8 @@ export const RecurringRadar: React.FC<RecurringRadarProps> = ({
     <View style={styles.container}>
       <View style={styles.headerRow}>
         <View style={styles.titleGroup}>
-          <Repeat size={16} color={CozyTheme.textSecondary} />
-          <Text style={styles.title}>Subscription & Bill Radar</Text>
+          <Repeat size={14} color={CozyTheme.textSecondary} />
+          <Text style={styles.title}>SUBSCRIPTION & BILL RADAR</Text>
         </View>
         <TouchableOpacity
           style={styles.addButton}
@@ -94,7 +93,7 @@ export const RecurringRadar: React.FC<RecurringRadarProps> = ({
           }}
           activeOpacity={0.7}
         >
-          <Plus size={14} color={CozyTheme.textInverse} />
+          <Plus size={12} color={CozyTheme.textInverse} />
           <Text style={styles.addButtonText}>Add Bill</Text>
         </TouchableOpacity>
       </View>
@@ -108,10 +107,10 @@ export const RecurringRadar: React.FC<RecurringRadarProps> = ({
           }}
           activeOpacity={0.8}
         >
-          <Sparkles size={22} color={CozyTheme.textSecondary} style={{ marginBottom: 6 }} />
+          <Sparkles size={20} color={CozyTheme.textSecondary} style={{ marginBottom: 6 }} />
           <Text style={styles.emptyTitle}>Radar is Clear</Text>
           <Text style={styles.emptySub}>
-            Track recurring bills (Netflix, Spotify, Wifi, Rent). Castra alerts you before due dates and lets you record payments in 1 tap.
+            Track recurring bills (Netflix, Wifi, Rent). Castra alerts you before due dates and lets you record payments in 1 tap.
           </Text>
         </TouchableOpacity>
       ) : (
@@ -138,17 +137,21 @@ export const RecurringRadar: React.FC<RecurringRadarProps> = ({
                           { backgroundColor: getCategoryColor(bill.category_id) },
                         ]}
                       />
-                      <Text style={styles.billName}>{bill.name}</Text>
+                      <Text style={styles.billName} numberOfLines={1}>
+                        {bill.name}
+                      </Text>
                     </View>
 
                     <View style={styles.billMetaRow}>
                       <View style={styles.sourceTag}>
                         {bill.card_id ? (
-                          <CreditCard size={11} color={CozyTheme.textSecondary} />
+                          <CreditCard size={10} color={CozyTheme.textSecondary} />
                         ) : (
-                          <Landmark size={11} color={CozyTheme.textSecondary} />
+                          <Landmark size={10} color={CozyTheme.textSecondary} />
                         )}
-                        <Text style={styles.sourceText}>{getSourceLabel(bill)}</Text>
+                        <Text style={styles.sourceText} numberOfLines={1}>
+                          {getSourceLabel(bill)}
+                        </Text>
                       </View>
 
                       <View
@@ -159,7 +162,7 @@ export const RecurringRadar: React.FC<RecurringRadarProps> = ({
                         ]}
                       >
                         <Clock
-                          size={11}
+                          size={10}
                           color={
                             isDueToday
                               ? CozyTheme.expense
@@ -178,8 +181,8 @@ export const RecurringRadar: React.FC<RecurringRadarProps> = ({
                           {isDueToday
                             ? 'Due Today!'
                             : bill.daysUntil === 1
-                            ? 'Due Tomorrow'
-                            : `Due in ${bill.daysUntil}d (Day ${bill.due_day})`}
+                            ? 'Tomorrow'
+                            : `In ${bill.daysUntil}d (${bill.due_day}th)`}
                         </Text>
                       </View>
                     </View>
@@ -203,7 +206,7 @@ export const RecurringRadar: React.FC<RecurringRadarProps> = ({
                     }}
                     activeOpacity={0.8}
                   >
-                    <Check size={14} color={CozyTheme.textInverse} />
+                    <Check size={13} color={CozyTheme.textInverse} />
                     <Text style={styles.markPaidText}>Mark Paid</Text>
                   </TouchableOpacity>
 
@@ -215,7 +218,7 @@ export const RecurringRadar: React.FC<RecurringRadarProps> = ({
                     }}
                     hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                   >
-                    <Trash2 size={14} color={CozyTheme.textTertiary} />
+                    <Trash2 size={13} color={CozyTheme.textTertiary} />
                   </TouchableOpacity>
                 </View>
               </View>
@@ -229,35 +232,34 @@ export const RecurringRadar: React.FC<RecurringRadarProps> = ({
 
 const styles = StyleSheet.create({
   container: {
-    paddingHorizontal: 22,
+    paddingHorizontal: 16,
     marginBottom: 20,
   },
   headerRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 10,
   },
   titleGroup: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 6,
   },
   title: {
-    fontSize: 13,
+    fontSize: 11,
     fontWeight: '700',
     color: CozyTheme.textSecondary,
-    textTransform: 'uppercase',
     letterSpacing: 0.8,
   },
   addButton: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: CozyTheme.textPrimary,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 10,
-    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+    gap: 4,
   },
   addButtonText: {
     fontSize: 11,
@@ -266,7 +268,7 @@ const styles = StyleSheet.create({
   },
   emptyCard: {
     backgroundColor: CozyTheme.surface,
-    padding: 20,
+    padding: 18,
     borderRadius: 16,
     borderWidth: 1,
     borderColor: CozyTheme.border,
@@ -274,24 +276,24 @@ const styles = StyleSheet.create({
     borderStyle: 'dashed',
   },
   emptyTitle: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '700',
     color: CozyTheme.textPrimary,
   },
   emptySub: {
-    fontSize: 12,
+    fontSize: 11,
     color: CozyTheme.textSecondary,
     textAlign: 'center',
-    marginTop: 4,
-    lineHeight: 16,
+    marginTop: 3,
+    lineHeight: 15,
   },
   billList: {
-    gap: 10,
+    gap: 8,
   },
   billCard: {
     backgroundColor: CozyTheme.surface,
-    padding: 14,
-    borderRadius: 16,
+    padding: 13,
+    borderRadius: 14,
     borderWidth: 1,
     borderColor: CozyTheme.border,
   },
@@ -305,55 +307,56 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: 12,
+    marginBottom: 10,
   },
   billInfoCol: {
     flex: 1,
-    paddingRight: 10,
+    paddingRight: 8,
   },
   billNameRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    marginBottom: 6,
+    gap: 6,
+    marginBottom: 5,
   },
   categoryPip: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
   },
   billName: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '700',
     color: CozyTheme.textPrimary,
   },
   billMetaRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 6,
     flexWrap: 'wrap',
   },
   sourceTag: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 3,
     backgroundColor: CozyTheme.surfaceElevated,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
     borderRadius: 6,
   },
   sourceText: {
-    fontSize: 11,
+    fontSize: 10,
     color: CozyTheme.textSecondary,
     fontWeight: '500',
+    maxWidth: 90,
   },
   urgencyTag: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 3,
     backgroundColor: CozyTheme.surfaceElevated,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
     borderRadius: 6,
   },
   urgencyTagSoon: {
@@ -363,7 +366,7 @@ const styles = StyleSheet.create({
     backgroundColor: CozyTheme.expenseSoft,
   },
   urgencyText: {
-    fontSize: 11,
+    fontSize: 10,
     color: CozyTheme.textSecondary,
     fontWeight: '600',
   },
@@ -379,22 +382,22 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
   },
   billAmount: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '800',
     color: CozyTheme.textPrimary,
     letterSpacing: -0.3,
   },
   billFreq: {
-    fontSize: 11,
+    fontSize: 10,
     color: CozyTheme.textTertiary,
     textTransform: 'capitalize',
-    marginTop: 2,
+    marginTop: 1,
   },
   billActionsRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingTop: 10,
+    paddingTop: 8,
     borderTopWidth: 1,
     borderTopColor: CozyTheme.border,
   },
@@ -402,10 +405,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: CozyTheme.textPrimary,
-    paddingVertical: 6,
-    paddingHorizontal: 14,
-    borderRadius: 10,
-    gap: 6,
+    paddingVertical: 5,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    gap: 5,
   },
   markPaidText: {
     fontSize: 11,
@@ -413,6 +416,6 @@ const styles = StyleSheet.create({
     color: CozyTheme.textInverse,
   },
   deleteBtn: {
-    padding: 6,
+    padding: 5,
   },
 });

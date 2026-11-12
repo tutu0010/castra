@@ -207,7 +207,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: CozyTheme.background,
     paddingTop: 16,
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
   },
   header: {
     flexDirection: 'row',
@@ -255,7 +255,8 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   catCard: {
-    width: '48%',
+    flexBasis: '47%',
+    flexGrow: 1,
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: CozyTheme.surface,

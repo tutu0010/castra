@@ -153,7 +153,7 @@ const styles = StyleSheet.create({
     borderLeftWidth: 1,
     borderRightWidth: 1,
     borderColor: CozyTheme.border,
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
     paddingTop: 18,
     paddingBottom: 36,
   },

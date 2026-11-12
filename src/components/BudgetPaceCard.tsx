@@ -70,7 +70,7 @@ export const BudgetPaceCard: React.FC<BudgetPaceCardProps> = ({
             ) : (
               <View style={[styles.badge, styles.badgeWarning]}>
                 <Flame size={12} color="#F59E0B" />
-                <Text style={[styles.badgeText, { color: '#F59E0B' }]}>Fast Spending Pace</Text>
+                <Text style={[styles.badgeText, { color: '#F59E0B' }]}>Fast Pace</Text>
               </View>
             )}
           </View>
@@ -82,8 +82,8 @@ export const BudgetPaceCard: React.FC<BudgetPaceCardProps> = ({
               onOpenBudgetModal();
             }}
           >
-            <Sliders size={13} color={CozyTheme.textSecondary} />
-            <Text style={styles.manageBtnText}>Edit Caps</Text>
+            <Sliders size={12} color={CozyTheme.textSecondary} />
+            <Text style={styles.manageBtnText}>Set Limits</Text>
           </TouchableOpacity>
         </View>
 
@@ -118,7 +118,7 @@ export const BudgetPaceCard: React.FC<BudgetPaceCardProps> = ({
             </View>
             <View style={styles.progressLabelRow}>
               <Text style={styles.progressLabelLeft}>
-                {formatMoney(totalSpentCents, baseCurrency)} spent ({budgetPct}%)
+                {formatMoney(totalSpentCents, baseCurrency)} ({budgetPct}%)
               </Text>
               <Text style={styles.progressLabelRight}>
                 Cap: {formatMoney(totalBudgetCents, baseCurrency)}
@@ -131,7 +131,7 @@ export const BudgetPaceCard: React.FC<BudgetPaceCardProps> = ({
       {/* Category Budget Breakdowns */}
       <View style={styles.categorySection}>
         <View style={styles.sectionHeaderRow}>
-          <Text style={styles.sectionTitle}>Category Allowances</Text>
+          <Text style={styles.sectionTitle}>CATEGORY ALLOWANCES</Text>
           <TouchableOpacity
             onPress={() => {
               triggerLightHaptic();
@@ -150,11 +150,12 @@ export const BudgetPaceCard: React.FC<BudgetPaceCardProps> = ({
                 triggerLightHaptic();
                 onOpenBudgetModal();
               }}
+              activeOpacity={0.7}
             >
-              <Sliders size={20} color={CozyTheme.textSecondary} style={{ marginBottom: 6 }} />
+              <Sliders size={18} color={CozyTheme.textSecondary} style={{ marginBottom: 6 }} />
               <Text style={styles.emptyCatTitle}>No Category Budgets Configured</Text>
               <Text style={styles.emptyCatSub}>
-                Tap here to set monthly spending targets for dining, groceries, shopping, and more.
+                Tap here to set monthly targets for dining, groceries, shopping, and bills.
               </Text>
             </TouchableOpacity>
           ) : (
@@ -216,7 +217,7 @@ export const BudgetPaceCard: React.FC<BudgetPaceCardProps> = ({
                     >
                       {isCatOver ? 'Exceeded by ' + formatMoney(spent - cap, baseCurrency) : `${catPct}% used`}
                     </Text>
-                    <ChevronRight size={13} color={CozyTheme.textTertiary} />
+                    <ChevronRight size={12} color={CozyTheme.textTertiary} />
                   </View>
                 </TouchableOpacity>
               );
@@ -230,22 +231,23 @@ export const BudgetPaceCard: React.FC<BudgetPaceCardProps> = ({
 
 const styles = StyleSheet.create({
   container: {
-    paddingHorizontal: 22,
-    marginBottom: 16,
+    paddingHorizontal: 16,
+    marginTop: 8,
+    marginBottom: 14,
   },
   heroCard: {
     backgroundColor: CozyTheme.surface,
-    padding: 18,
-    borderRadius: 20,
+    padding: 16,
+    borderRadius: 18,
     borderWidth: 1,
     borderColor: CozyTheme.border,
-    marginBottom: 16,
+    marginBottom: 14,
   },
   heroTopRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 10,
   },
   paceBadgeRow: {
     flexDirection: 'row',
@@ -254,10 +256,10 @@ const styles = StyleSheet.create({
   badge: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 10,
-    gap: 5,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    gap: 4,
   },
   badgeSafe: {
     backgroundColor: CozyTheme.incomeSoft,
@@ -277,10 +279,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: CozyTheme.surfaceElevated,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 10,
-    gap: 5,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    gap: 4,
     borderWidth: 1,
     borderColor: CozyTheme.border,
   },
@@ -290,39 +292,39 @@ const styles = StyleSheet.create({
     color: CozyTheme.textSecondary,
   },
   dailyAmount: {
-    fontSize: 32,
+    fontSize: 28,
     fontWeight: '900',
     color: CozyTheme.textPrimary,
-    letterSpacing: -1,
+    letterSpacing: -0.8,
   },
   dailyPerDay: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600',
     color: CozyTheme.textSecondary,
   },
   subPaceText: {
     fontSize: 12,
     color: CozyTheme.textSecondary,
-    marginTop: 4,
-    marginBottom: 14,
+    marginTop: 3,
+    marginBottom: 12,
   },
   progressBarWrapper: {
     marginTop: 2,
   },
   progressBarTrack: {
-    height: 8,
-    borderRadius: 4,
+    height: 6,
+    borderRadius: 3,
     backgroundColor: CozyTheme.surfaceElevated,
     overflow: 'hidden',
   },
   progressBarFill: {
     height: '100%',
-    borderRadius: 4,
+    borderRadius: 3,
   },
   progressLabelRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginTop: 6,
+    marginTop: 5,
   },
   progressLabelLeft: {
     fontSize: 11,
@@ -339,26 +341,25 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 8,
   },
   sectionTitle: {
-    fontSize: 13,
+    fontSize: 11,
     fontWeight: '700',
     color: CozyTheme.textSecondary,
-    textTransform: 'uppercase',
     letterSpacing: 0.8,
   },
   viewAllText: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '700',
     color: CozyTheme.textPrimary,
   },
   catList: {
-    gap: 10,
+    gap: 8,
   },
   emptyCatCard: {
     backgroundColor: CozyTheme.surface,
-    padding: 20,
+    padding: 18,
     borderRadius: 16,
     borderWidth: 1,
     borderColor: CozyTheme.border,
@@ -366,20 +367,20 @@ const styles = StyleSheet.create({
     borderStyle: 'dashed',
   },
   emptyCatTitle: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '700',
     color: CozyTheme.textPrimary,
   },
   emptyCatSub: {
-    fontSize: 12,
+    fontSize: 11,
     color: CozyTheme.textSecondary,
     textAlign: 'center',
-    marginTop: 4,
-    lineHeight: 16,
+    marginTop: 3,
+    lineHeight: 15,
   },
   catItem: {
     backgroundColor: CozyTheme.surface,
-    padding: 14,
+    padding: 12,
     borderRadius: 14,
     borderWidth: 1,
     borderColor: CozyTheme.border,
@@ -388,20 +389,20 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 6,
   },
   catItemTitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 6,
   },
   catItemDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
   },
   catItemName: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '700',
     color: CozyTheme.textPrimary,
   },
@@ -410,7 +411,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   catSpentText: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '700',
     color: CozyTheme.textPrimary,
   },
@@ -419,23 +420,23 @@ const styles = StyleSheet.create({
     color: CozyTheme.textTertiary,
   },
   catBarTrack: {
-    height: 6,
-    borderRadius: 3,
+    height: 5,
+    borderRadius: 2.5,
     backgroundColor: CozyTheme.surfaceElevated,
     overflow: 'hidden',
   },
   catBarFill: {
     height: '100%',
-    borderRadius: 3,
+    borderRadius: 2.5,
   },
   catItemBottom: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: 6,
+    marginTop: 5,
   },
   catPctText: {
-    fontSize: 11,
+    fontSize: 10,
     color: CozyTheme.textSecondary,
     fontWeight: '500',
   },

@@ -5,16 +5,13 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Dimensions,
+  useWindowDimensions,
 } from 'react-native';
 import { CreditCard, Landmark, Wallet, Plus, ChevronRight } from 'lucide-react-native';
 import { Account, Card } from '../types';
 import { CozyTheme } from '../theme/colors';
 import { formatMoney } from '../utils/currency';
 import { triggerLightHaptic } from '../utils/haptics';
-
-const { width } = Dimensions.get('window');
-const CARD_WIDTH = Math.min(width * 0.72, 270);
 
 interface CardDeckProps {
   accounts: Account[];
@@ -29,20 +26,24 @@ export const CardDeck: React.FC<CardDeckProps> = ({
   onPressEntity,
   onAddPress,
 }) => {
+  const { width: screenWidth } = useWindowDimensions();
+  const cardWidth = Math.min(Math.max(screenWidth * 0.74, 240), 285);
+
   const hasItems = accounts.length > 0 || cards.length > 0;
 
   return (
     <View style={styles.container}>
       <View style={styles.headerRow}>
-        <Text style={styles.sectionTitle}>Accounts & Cards</Text>
+        <Text style={styles.sectionTitle}>ACCOUNTS & CARDS</Text>
         <TouchableOpacity
           style={styles.addTextButton}
           onPress={() => {
             triggerLightHaptic();
             onAddPress();
           }}
+          activeOpacity={0.7}
         >
-          <Plus size={14} color={CozyTheme.textPrimary} />
+          <Plus size={13} color={CozyTheme.textPrimary} />
           <Text style={styles.addTextButtonLabel}>Add New</Text>
         </TouchableOpacity>
       </View>
@@ -57,10 +58,10 @@ export const CardDeck: React.FC<CardDeckProps> = ({
           activeOpacity={0.7}
         >
           <View style={styles.emptyIconCircle}>
-            <Plus size={20} color={CozyTheme.textPrimary} />
+            <Plus size={18} color={CozyTheme.textPrimary} />
           </View>
           <Text style={styles.emptyCardTitle}>No Accounts Added Yet</Text>
-          <Text style={styles.emptyCardSub}>Tap to add your first Bank, Credit/Debit Card, or Wallet</Text>
+          <Text style={styles.emptyCardSub}>Tap to add your Bank, Credit/Debit Card, or Cash Wallet</Text>
         </TouchableOpacity>
       ) : (
         <ScrollView
@@ -68,10 +69,10 @@ export const CardDeck: React.FC<CardDeckProps> = ({
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.scrollContent}
           decelerationRate="fast"
-          snapToInterval={CARD_WIDTH + 12}
+          snapToInterval={cardWidth + 10}
         >
           {/* Credit & Debit Cards */}
-          {cards.map(card => {
+          {cards.map((card) => {
             const isCredit = card.type === 'credit';
             const outstanding = card.outstanding_balance_cents || 0;
             const limit = card.credit_limit_cents || 0;
@@ -86,11 +87,14 @@ export const CardDeck: React.FC<CardDeckProps> = ({
                   triggerLightHaptic();
                   onPressEntity(card);
                 }}
-                style={[styles.cardBase, { backgroundColor: card.color || '#1C222B' }]}
+                style={[
+                  styles.cardBase,
+                  { width: cardWidth, backgroundColor: card.color || '#1C222B' },
+                ]}
               >
                 <View style={styles.cardTopRow}>
                   <View style={styles.typeRow}>
-                    <CreditCard size={13} color="rgba(255, 255, 255, 0.8)" />
+                    <CreditCard size={13} color="rgba(255, 255, 255, 0.85)" />
                     <Text style={styles.typeText}>{isCredit ? 'Credit Card' : 'Debit Card'}</Text>
                   </View>
                   {card.last4 ? <Text style={styles.last4Text}>•• {card.last4}</Text> : null}
@@ -100,7 +104,7 @@ export const CardDeck: React.FC<CardDeckProps> = ({
                   <Text style={styles.cardName} numberOfLines={1}>
                     {card.name}
                   </Text>
-                  <Text style={styles.cardBalance}>
+                  <Text style={styles.cardBalance} numberOfLines={1}>
                     {isCredit ? formatMoney(outstanding, card.currency) : 'Direct Debit'}
                   </Text>
                 </View>
@@ -131,7 +135,7 @@ export const CardDeck: React.FC<CardDeckProps> = ({
                 ) : (
                   <View style={styles.cardBottom}>
                     <View style={styles.tapDetailsRow}>
-                      <Text style={styles.tapDetailsText}>Manage & History</Text>
+                      <Text style={styles.tapDetailsText}>Manage & Adjust</Text>
                       <ChevronRight size={12} color="rgba(255, 255, 255, 0.7)" />
                     </View>
                   </View>
@@ -141,7 +145,7 @@ export const CardDeck: React.FC<CardDeckProps> = ({
           })}
 
           {/* Bank & Wallet Accounts */}
-          {accounts.map(acc => {
+          {accounts.map((acc) => {
             const isBank = acc.type === 'bank';
 
             return (
@@ -152,14 +156,17 @@ export const CardDeck: React.FC<CardDeckProps> = ({
                   triggerLightHaptic();
                   onPressEntity(acc);
                 }}
-                style={[styles.cardBase, { backgroundColor: acc.color || '#161412' }]}
+                style={[
+                  styles.cardBase,
+                  { width: cardWidth, backgroundColor: acc.color || '#161412' },
+                ]}
               >
                 <View style={styles.cardTopRow}>
                   <View style={styles.typeRow}>
                     {isBank ? (
-                      <Landmark size={13} color="rgba(255, 255, 255, 0.8)" />
+                      <Landmark size={13} color="rgba(255, 255, 255, 0.85)" />
                     ) : (
-                      <Wallet size={13} color="rgba(255, 255, 255, 0.8)" />
+                      <Wallet size={13} color="rgba(255, 255, 255, 0.85)" />
                     )}
                     <Text style={styles.typeText}>{isBank ? 'Bank Account' : 'Cash Wallet'}</Text>
                   </View>
@@ -170,7 +177,7 @@ export const CardDeck: React.FC<CardDeckProps> = ({
                   <Text style={styles.cardName} numberOfLines={1}>
                     {acc.name}
                   </Text>
-                  <Text style={styles.cardBalance}>
+                  <Text style={styles.cardBalance} numberOfLines={1}>
                     {formatMoney(acc.balance_cents, acc.currency)}
                   </Text>
                 </View>
@@ -192,20 +199,19 @@ export const CardDeck: React.FC<CardDeckProps> = ({
 
 const styles = StyleSheet.create({
   container: {
-    marginVertical: 14,
+    marginVertical: 10,
   },
   headerRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 22,
-    marginBottom: 10,
+    paddingHorizontal: 16,
+    marginBottom: 8,
   },
   sectionTitle: {
-    fontSize: 13,
+    fontSize: 11,
     fontWeight: '700',
     color: CozyTheme.textSecondary,
-    textTransform: 'uppercase',
     letterSpacing: 0.8,
   },
   addTextButton: {
@@ -214,19 +220,18 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   addTextButtonLabel: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '700',
     color: CozyTheme.textPrimary,
   },
   scrollContent: {
-    paddingHorizontal: 22,
-    gap: 12,
+    paddingHorizontal: 16,
+    gap: 10,
   },
   cardBase: {
-    width: CARD_WIDTH,
-    height: 154,
-    borderRadius: 20,
-    padding: 16,
+    height: 144,
+    borderRadius: 18,
+    padding: 14,
     justifyContent: 'space-between',
     borderWidth: 1,
     borderColor: CozyTheme.border,
@@ -239,37 +244,37 @@ const styles = StyleSheet.create({
   typeRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 5,
   },
   typeText: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '700',
     color: 'rgba(255, 255, 255, 0.85)',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
   last4Text: {
-    fontSize: 11,
+    fontSize: 10,
     color: 'rgba(255, 255, 255, 0.8)',
     fontWeight: '700',
   },
   cardMiddle: {
-    gap: 2,
+    gap: 1,
   },
   cardName: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '800',
     color: '#FFFFFF',
     letterSpacing: -0.3,
   },
   cardBalance: {
-    fontSize: 24,
-    fontWeight: '800',
+    fontSize: 22,
+    fontWeight: '900',
     color: '#FFFFFF',
     letterSpacing: -0.6,
   },
   cardBottom: {
-    gap: 4,
+    gap: 3,
   },
   limitRow: {
     flexDirection: 'row',
@@ -305,26 +310,27 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   emptyCardBox: {
-    marginHorizontal: 22,
-    padding: 24,
-    borderRadius: 20,
+    marginHorizontal: 16,
+    padding: 20,
+    borderRadius: 18,
     backgroundColor: CozyTheme.surface,
     borderWidth: 1,
     borderColor: CozyTheme.border,
     alignItems: 'center',
     justifyContent: 'center',
+    borderStyle: 'dashed',
   },
   emptyIconCircle: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     backgroundColor: CozyTheme.surfaceElevated,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 8,
   },
   emptyCardTitle: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '800',
     color: CozyTheme.textPrimary,
   },
@@ -333,5 +339,6 @@ const styles = StyleSheet.create({
     color: CozyTheme.textSecondary,
     textAlign: 'center',
     marginTop: 4,
+    lineHeight: 16,
   },
 });

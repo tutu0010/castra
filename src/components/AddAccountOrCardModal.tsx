@@ -311,7 +311,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: CozyTheme.background,
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
     paddingTop: 16,
     paddingBottom: 36,
   },

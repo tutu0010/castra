@@ -6,9 +6,10 @@ import {
   ScrollView,
   TouchableOpacity,
   RefreshControl,
+  useWindowDimensions,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
-import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   Plus,
   History,
@@ -18,6 +19,7 @@ import {
   BookOpen,
   Target,
   BarChart3,
+  Settings,
 } from 'lucide-react-native';
 
 import { CozyTheme } from './src/theme/colors';
@@ -61,7 +63,9 @@ import { AnalyticsView } from './src/components/AnalyticsView';
 import { formatMoney } from './src/utils/currency';
 import { triggerLightHaptic, triggerSuccessHaptic } from './src/utils/haptics';
 
-export default function App() {
+function MainAppContent() {
+  const insets = useSafeAreaInsets();
+  const { width: screenWidth } = useWindowDimensions();
   const [activeTab, setActiveTab] = useState<'ledger' | 'budgets' | 'analytics'>('ledger');
 
   const [accounts, setAccounts] = useState<Account[]>([]);
@@ -104,10 +108,9 @@ export default function App() {
       setRecurringBills(bills);
       setBaseCurr(curr || 'INR');
 
-      // Keep selected entity updated if opened
       if (selectedEntity) {
-        const updatedAcc = accs.find(a => a.id === selectedEntity.id);
-        const updatedCard = crds.find(c => c.id === selectedEntity.id);
+        const updatedAcc = accs.find((a) => a.id === selectedEntity.id);
+        const updatedCard = crds.find((c) => c.id === selectedEntity.id);
         setSelectedEntity(updatedAcc || updatedCard || null);
       }
     } catch (err) {
@@ -160,7 +163,7 @@ export default function App() {
   // Pay Card shortcut: auto-pay credit card from primary bank
   const handlePayCard = (card: Card) => {
     triggerLightHaptic();
-    const primaryBank = accounts.find(a => a.type === 'bank');
+    const primaryBank = accounts.find((a) => a.type === 'bank');
     if (!primaryBank || !card.outstanding_balance_cents) return;
 
     addTransaction({
@@ -225,12 +228,24 @@ export default function App() {
   };
 
   // Monthly stats calculations
-  const totalExpenseCents = transactions
-    .filter(t => t.type === 'expense')
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const currentMonth = now.getMonth();
+
+  const monthExpenseCents = transactions
+    .filter((t) => {
+      if (t.type !== 'expense') return false;
+      const d = new Date(t.date);
+      return d.getFullYear() === currentYear && d.getMonth() === currentMonth;
+    })
     .reduce((sum, t) => sum + t.base_amount_cents, 0);
 
-  const totalIncomeCents = transactions
-    .filter(t => t.type === 'income')
+  const monthIncomeCents = transactions
+    .filter((t) => {
+      if (t.type !== 'income') return false;
+      const d = new Date(t.date);
+      return d.getFullYear() === currentYear && d.getMonth() === currentMonth;
+    })
     .reduce((sum, t) => sum + t.base_amount_cents, 0);
 
   // Filtered transactions for the ledger view
@@ -255,9 +270,6 @@ export default function App() {
 
     if (dateFilter !== 'all') {
       const txDate = new Date(tx.date);
-      const now = new Date();
-      const currentYear = now.getFullYear();
-      const currentMonth = now.getMonth();
 
       if (dateFilter === 'this_month') {
         if (txDate.getFullYear() !== currentYear || txDate.getMonth() !== currentMonth) {
@@ -282,321 +294,354 @@ export default function App() {
     return true;
   });
 
-  return (
-    <SafeAreaProvider>
-      <BiometricGate>
-        <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
-          <StatusBar style="light" />
+  const scrollBottomPadding = Math.max(insets.bottom + 85, 95);
 
-          {/* Top Level Summary Header */}
+  return (
+    <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
+      <StatusBar style="light" />
+
+      {/* FIXED TOP APP BAR (Compact & Aligned) */}
+      <View style={styles.topAppBar}>
+        <View style={styles.brandGroup}>
+          <Text style={styles.brandTitle}>Castra</Text>
+          <View style={styles.badgeOffline}>
+            <ShieldCheck size={11} color={CozyTheme.income} />
+            <Text style={styles.badgeOfflineText}>Private & Offline</Text>
+          </View>
+        </View>
+
+        <TouchableOpacity
+          style={styles.settingsButton}
+          onPress={() => {
+            triggerLightHaptic();
+            setSettingsVisible(true);
+          }}
+          activeOpacity={0.7}
+        >
+          <Settings size={18} color={CozyTheme.textSecondary} />
+        </TouchableOpacity>
+      </View>
+
+      {/* SEGMENTED NAVIGATION TAB BAR */}
+      <View style={styles.tabNavRow}>
+        <TouchableOpacity
+          style={[styles.tabNavButton, activeTab === 'ledger' && styles.tabNavButtonActive]}
+          onPress={() => {
+            triggerLightHaptic();
+            setActiveTab('ledger');
+          }}
+          activeOpacity={0.7}
+        >
+          <BookOpen
+            size={13}
+            color={activeTab === 'ledger' ? CozyTheme.textInverse : CozyTheme.textSecondary}
+          />
+          <Text style={[styles.tabNavText, activeTab === 'ledger' && styles.tabNavTextActive]}>
+            Ledger
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.tabNavButton, activeTab === 'budgets' && styles.tabNavButtonActive]}
+          onPress={() => {
+            triggerLightHaptic();
+            setActiveTab('budgets');
+          }}
+          activeOpacity={0.7}
+        >
+          <Target
+            size={13}
+            color={activeTab === 'budgets' ? CozyTheme.textInverse : CozyTheme.textSecondary}
+          />
+          <Text style={[styles.tabNavText, activeTab === 'budgets' && styles.tabNavTextActive]}>
+            Budgets & Radar
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.tabNavButton, activeTab === 'analytics' && styles.tabNavButtonActive]}
+          onPress={() => {
+            triggerLightHaptic();
+            setActiveTab('analytics');
+          }}
+          activeOpacity={0.7}
+        >
+          <BarChart3
+            size={13}
+            color={activeTab === 'analytics' ? CozyTheme.textInverse : CozyTheme.textSecondary}
+          />
+          <Text style={[styles.tabNavText, activeTab === 'analytics' && styles.tabNavTextActive]}>
+            Analytics
+          </Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* TAB 1: LEDGER */}
+      {activeTab === 'ledger' && (
+        <ScrollView
+          style={styles.container}
+          contentContainerStyle={[styles.scrollContent, { paddingBottom: scrollBottomPadding }]}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor={CozyTheme.textSecondary}
+            />
+          }
+        >
+          {/* Executive Net Worth Card */}
           <SummaryHeader
             accounts={accounts}
             cards={cards}
             baseCurrency={baseCurrency}
-            onOpenSettings={() => setSettingsVisible(true)}
           />
 
-          {/* Segmented Navigation Tab Bar */}
-          <View style={styles.tabNavRow}>
-            <TouchableOpacity
-              style={[styles.tabNavButton, activeTab === 'ledger' && styles.tabNavButtonActive]}
-              onPress={() => {
-                triggerLightHaptic();
-                setActiveTab('ledger');
-              }}
-              activeOpacity={0.7}
-            >
-              <BookOpen
-                size={14}
-                color={activeTab === 'ledger' ? CozyTheme.textInverse : CozyTheme.textSecondary}
-              />
-              <Text style={[styles.tabNavText, activeTab === 'ledger' && styles.tabNavTextActive]}>
-                Ledger
+          {/* Quick Stats Grid (This Month) */}
+          <View style={styles.statsGrid}>
+            <View style={styles.statBox}>
+              <View style={styles.statHeader}>
+                <ArrowDownRight size={13} color={CozyTheme.expense} />
+                <Text style={styles.statLabel}>Month Spend</Text>
+              </View>
+              <Text style={styles.statAmountExpense} numberOfLines={1}>
+                {formatMoney(monthExpenseCents, baseCurrency)}
               </Text>
-            </TouchableOpacity>
+            </View>
 
-            <TouchableOpacity
-              style={[styles.tabNavButton, activeTab === 'budgets' && styles.tabNavButtonActive]}
-              onPress={() => {
-                triggerLightHaptic();
-                setActiveTab('budgets');
-              }}
-              activeOpacity={0.7}
-            >
-              <Target
-                size={14}
-                color={activeTab === 'budgets' ? CozyTheme.textInverse : CozyTheme.textSecondary}
-              />
-              <Text style={[styles.tabNavText, activeTab === 'budgets' && styles.tabNavTextActive]}>
-                Budgets & Radar
+            <View style={styles.statBox}>
+              <View style={styles.statHeader}>
+                <ArrowUpRight size={13} color={CozyTheme.income} />
+                <Text style={styles.statLabel}>Month Income</Text>
+              </View>
+              <Text style={styles.statAmountIncome} numberOfLines={1}>
+                {formatMoney(monthIncomeCents, baseCurrency)}
               </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.tabNavButton, activeTab === 'analytics' && styles.tabNavButtonActive]}
-              onPress={() => {
-                triggerLightHaptic();
-                setActiveTab('analytics');
-              }}
-              activeOpacity={0.7}
-            >
-              <BarChart3
-                size={14}
-                color={activeTab === 'analytics' ? CozyTheme.textInverse : CozyTheme.textSecondary}
-              />
-              <Text style={[styles.tabNavText, activeTab === 'analytics' && styles.tabNavTextActive]}>
-                Analytics
-              </Text>
-            </TouchableOpacity>
+            </View>
           </View>
 
-          {/* TAB 1: LEDGER */}
-          {activeTab === 'ledger' && (
-            <ScrollView
-              style={styles.container}
-              contentContainerStyle={styles.scrollContent}
-              showsVerticalScrollIndicator={false}
-              refreshControl={
-                <RefreshControl
-                  refreshing={refreshing}
-                  onRefresh={onRefresh}
-                  tintColor={CozyTheme.textSecondary}
-                />
-              }
-            >
-              {/* Quick Stats Grid */}
-              <View style={styles.statsGrid}>
-                <View style={styles.statBox}>
-                  <View style={styles.statHeader}>
-                    <ArrowDownRight size={14} color={CozyTheme.expense} />
-                    <Text style={styles.statLabel}>Total Spend</Text>
-                  </View>
-                  <Text style={styles.statAmountExpense}>
-                    {formatMoney(totalExpenseCents, baseCurrency)}
-                  </Text>
+          {/* Accounts & Cards Hub */}
+          <CardDeck
+            accounts={accounts}
+            cards={cards}
+            onPressEntity={(entity) => setSelectedEntity(entity)}
+            onAddPress={() => setAddEntityVisible(true)}
+          />
+
+          {/* Compact Search & Filter Bar */}
+          <FilterSearchBar
+            searchQuery={searchQuery}
+            onSearchChange={setSearchQuery}
+            dateFilter={dateFilter}
+            onDateFilterChange={setDateFilter}
+            selectedCategoryId={selectedCategoryId}
+            onCategoryChange={setSelectedCategoryId}
+            categories={categories}
+            totalResults={filteredTransactions.length}
+            totalEntries={transactions.length}
+          />
+
+          {/* Ledger Section Header */}
+          <View style={styles.feedHeaderRow}>
+            <View style={styles.feedTitleGroup}>
+              <History size={14} color={CozyTheme.textSecondary} />
+              <Text style={styles.feedTitle}>RECENT ACTIVITY</Text>
+            </View>
+            <Text style={styles.transactionCountText}>
+              {filteredTransactions.length} {filteredTransactions.length === 1 ? 'entry' : 'entries'}
+            </Text>
+          </View>
+
+          {/* Transaction List / Clean Empty State */}
+          <View style={styles.transactionsList}>
+            {filteredTransactions.length === 0 ? (
+              <View style={styles.emptyContainer}>
+                <View style={styles.emptyIconCircle}>
+                  <ShieldCheck size={22} color={CozyTheme.textSecondary} />
                 </View>
-
-                <View style={styles.statBox}>
-                  <View style={styles.statHeader}>
-                    <ArrowUpRight size={14} color={CozyTheme.income} />
-                    <Text style={styles.statLabel}>Total Income</Text>
-                  </View>
-                  <Text style={styles.statAmountIncome}>
-                    {formatMoney(totalIncomeCents, baseCurrency)}
-                  </Text>
-                </View>
-              </View>
-
-              {/* Accounts & Cards Hub */}
-              <CardDeck
-                accounts={accounts}
-                cards={cards}
-                onPressEntity={(entity) => {
-                  setSelectedEntity(entity);
-                }}
-                onAddPress={() => setAddEntityVisible(true)}
-              />
-
-              {/* Smart Search & Filter Bar */}
-              <FilterSearchBar
-                searchQuery={searchQuery}
-                onSearchChange={setSearchQuery}
-                dateFilter={dateFilter}
-                onDateFilterChange={setDateFilter}
-                selectedCategoryId={selectedCategoryId}
-                onCategoryChange={setSelectedCategoryId}
-                categories={categories}
-                totalResults={filteredTransactions.length}
-                totalEntries={transactions.length}
-              />
-
-              {/* Ledger Section Header */}
-              <View style={styles.feedHeaderRow}>
-                <View style={styles.feedTitleGroup}>
-                  <History size={15} color={CozyTheme.textSecondary} />
-                  <Text style={styles.feedTitle}>Recent Activity</Text>
-                </View>
-                <Text style={styles.transactionCountText}>
-                  {filteredTransactions.length} entries
+                <Text style={styles.emptyTitle}>
+                  {transactions.length === 0 ? 'Fresh Ledger Ready' : 'No Matching Entries'}
                 </Text>
-              </View>
-
-              {/* Transaction List / Clean Empty State */}
-              <View style={styles.transactionsList}>
-                {filteredTransactions.length === 0 ? (
-                  <View style={styles.emptyContainer}>
-                    <View style={styles.emptyIconCircle}>
-                      <ShieldCheck size={24} color={CozyTheme.textSecondary} />
-                    </View>
-                    <Text style={styles.emptyTitle}>
-                      {transactions.length === 0 ? 'Fresh Ledger Ready' : 'No Matching Entries'}
-                    </Text>
-                    <Text style={styles.emptySubtitle}>
-                      {transactions.length === 0
-                        ? 'Add your bank accounts, cards, or tap the button below to record your first entry.'
-                        : 'Try clearing your filters or search keywords to view all transactions.'}
-                    </Text>
-                    {transactions.length === 0 && (
-                      <TouchableOpacity
-                        style={styles.emptyAddButton}
-                        onPress={() => setQuickAddVisible(true)}
-                      >
-                        <Plus size={16} color={CozyTheme.textInverse} style={{ marginRight: 6 }} />
-                        <Text style={styles.emptyAddButtonText}>Record Entry</Text>
-                      </TouchableOpacity>
-                    )}
-                  </View>
-                ) : (
-                  filteredTransactions.map((tx) => (
-                    <TransactionItem
-                      key={tx.id}
-                      transaction={tx}
-                      accounts={accounts}
-                      cards={cards}
-                      categories={categories}
-                      baseCurrency={baseCurrency}
-                      onDelete={handleDeleteTransaction}
-                    />
-                  ))
+                <Text style={styles.emptySubtitle}>
+                  {transactions.length === 0
+                    ? 'Add your bank accounts, cards, or tap the button below to record your first entry.'
+                    : 'Try clearing your filters or search keywords to view all transactions.'}
+                </Text>
+                {transactions.length === 0 && (
+                  <TouchableOpacity
+                    style={styles.emptyAddButton}
+                    onPress={() => setQuickAddVisible(true)}
+                  >
+                    <Plus size={15} color={CozyTheme.textInverse} style={{ marginRight: 6 }} />
+                    <Text style={styles.emptyAddButtonText}>Record Entry</Text>
+                  </TouchableOpacity>
                 )}
               </View>
-            </ScrollView>
-          )}
-
-          {/* TAB 2: BUDGETS & RADAR */}
-          {activeTab === 'budgets' && (
-            <ScrollView
-              style={styles.container}
-              contentContainerStyle={styles.scrollContent}
-              showsVerticalScrollIndicator={false}
-              refreshControl={
-                <RefreshControl
-                  refreshing={refreshing}
-                  onRefresh={onRefresh}
-                  tintColor={CozyTheme.textSecondary}
+            ) : (
+              filteredTransactions.map((tx) => (
+                <TransactionItem
+                  key={tx.id}
+                  transaction={tx}
+                  accounts={accounts}
+                  cards={cards}
+                  categories={categories}
+                  baseCurrency={baseCurrency}
+                  onDelete={handleDeleteTransaction}
                 />
-              }
-            >
-              {/* Category Budgets & Daily Safe Pace */}
-              <BudgetPaceCard
-                categories={categories}
-                transactions={transactions}
-                baseCurrency={baseCurrency}
-                onOpenBudgetModal={() => setSetBudgetVisible(true)}
-              />
-
-              {/* Recurring Bills & Subscription Radar */}
-              <RecurringRadar
-                bills={recurringBills}
-                accounts={accounts}
-                cards={cards}
-                categories={categories}
-                baseCurrency={baseCurrency}
-                onPayBill={handlePayBill}
-                onToggleBill={handleToggleRecurring}
-                onDeleteBill={handleDeleteRecurring}
-                onOpenAddBill={() => setAddRecurringVisible(true)}
-              />
-            </ScrollView>
-          )}
-
-          {/* TAB 3: VISUAL CASH FLOW & ANALYTICS CHARTS */}
-          {activeTab === 'analytics' && (
-            <AnalyticsView
-              transactions={transactions}
-              categories={categories}
-              baseCurrency={baseCurrency}
-            />
-          )}
-
-          {/* Floating Quick-Add Button */}
-          <View style={styles.fabContainer}>
-            <TouchableOpacity
-              style={styles.fabButton}
-              onPress={() => {
-                triggerLightHaptic();
-                setQuickAddVisible(true);
-              }}
-              activeOpacity={0.85}
-            >
-              <Plus size={20} color={CozyTheme.textInverse} />
-              <Text style={styles.fabText}>Add Entry</Text>
-            </TouchableOpacity>
+              ))
+            )}
           </View>
+        </ScrollView>
+      )}
 
-          {/* Account / Card Detail Sub-Page (with balance adjuster) */}
-          <AccountDetailModal
-            visible={!!selectedEntity}
-            onClose={() => setSelectedEntity(null)}
-            entity={selectedEntity}
+      {/* TAB 2: BUDGETS & RADAR */}
+      {activeTab === 'budgets' && (
+        <ScrollView
+          style={styles.container}
+          contentContainerStyle={[styles.scrollContent, { paddingBottom: scrollBottomPadding }]}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor={CozyTheme.textSecondary}
+            />
+          }
+        >
+          {/* Category Budgets & Daily Safe Pace */}
+          <BudgetPaceCard
+            categories={categories}
             transactions={transactions}
+            baseCurrency={baseCurrency}
+            onOpenBudgetModal={() => setSetBudgetVisible(true)}
+          />
+
+          {/* Recurring Bills & Subscription Radar */}
+          <RecurringRadar
+            bills={recurringBills}
             accounts={accounts}
             cards={cards}
             categories={categories}
             baseCurrency={baseCurrency}
-            onUpdateBalance={handleUpdateBalance}
-            onDeleteEntity={handleDeleteEntity}
-            onDeleteTransaction={handleDeleteTransaction}
-            onPayCreditCard={handlePayCard}
+            onPayBill={handlePayBill}
+            onToggleBill={handleToggleRecurring}
+            onDeleteBill={handleDeleteRecurring}
+            onOpenAddBill={() => setAddRecurringVisible(true)}
           />
+        </ScrollView>
+      )}
 
-          {/* Quick Add Log Modal */}
-          <QuickAddModal
-            visible={quickAddVisible}
-            onClose={() => setQuickAddVisible(false)}
-            accounts={accounts}
-            cards={cards}
-            categories={categories}
-            baseCurrency={baseCurrency}
-            onSave={handleSaveTransaction}
-            onOpenAddEntity={() => setAddEntityVisible(true)}
-          />
+      {/* TAB 3: VISUAL CASH FLOW & ANALYTICS CHARTS */}
+      {activeTab === 'analytics' && (
+        <AnalyticsView
+          transactions={transactions}
+          categories={categories}
+          baseCurrency={baseCurrency}
+        />
+      )}
 
-          {/* Add Account / Card Modal */}
-          <AddAccountOrCardModal
-            visible={addEntityVisible}
-            onClose={() => setAddEntityVisible(false)}
-            accounts={accounts}
-            baseCurrency={baseCurrency}
-            onSaveAccount={(acc) => {
-              createAccount(acc);
-              loadData();
-            }}
-            onSaveCard={(c) => {
-              createCard(c);
-              loadData();
-            }}
-          />
+      {/* FLOATING QUICK-ADD BUTTON (Safe Area Aware) */}
+      <View
+        style={[
+          styles.fabContainer,
+          { bottom: Math.max(insets.bottom + 14, 20) },
+        ]}
+        pointerEvents="box-none"
+      >
+        <TouchableOpacity
+          style={styles.fabButton}
+          onPress={() => {
+            triggerLightHaptic();
+            setQuickAddVisible(true);
+          }}
+          activeOpacity={0.85}
+        >
+          <Plus size={18} color={CozyTheme.textInverse} />
+          <Text style={styles.fabText}>Add Entry</Text>
+        </TouchableOpacity>
+      </View>
 
-          {/* Set Category Budgets Modal */}
-          <SetBudgetModal
-            visible={setBudgetVisible}
-            onClose={() => setSetBudgetVisible(false)}
-            categories={categories}
-            baseCurrency={baseCurrency}
-            onSaveBudget={handleSaveBudget}
-          />
+      {/* Account / Card Detail Sub-Page (with balance adjuster) */}
+      <AccountDetailModal
+        visible={!!selectedEntity}
+        onClose={() => setSelectedEntity(null)}
+        entity={selectedEntity}
+        transactions={transactions}
+        accounts={accounts}
+        cards={cards}
+        categories={categories}
+        baseCurrency={baseCurrency}
+        onUpdateBalance={handleUpdateBalance}
+        onDeleteEntity={handleDeleteEntity}
+        onDeleteTransaction={handleDeleteTransaction}
+        onPayCreditCard={handlePayCard}
+      />
 
-          {/* Add Recurring Bill Modal */}
-          <AddRecurringBillModal
-            visible={addRecurringVisible}
-            onClose={() => setAddRecurringVisible(false)}
-            categories={categories}
-            accounts={accounts}
-            cards={cards}
-            baseCurrency={baseCurrency}
-            onSave={handleSaveRecurring}
-          />
+      {/* Quick Add Log Modal */}
+      <QuickAddModal
+        visible={quickAddVisible}
+        onClose={() => setQuickAddVisible(false)}
+        accounts={accounts}
+        cards={cards}
+        categories={categories}
+        baseCurrency={baseCurrency}
+        onSave={handleSaveTransaction}
+        onOpenAddEntity={() => setAddEntityVisible(true)}
+      />
 
-          {/* Settings & Preferences Modal */}
-          <SettingsBackupModal
-            visible={settingsVisible}
-            onClose={() => setSettingsVisible(false)}
-            baseCurrency={baseCurrency}
-            onBaseCurrencyChange={handleBaseCurrencyChange}
-            onDataReload={loadData}
-          />
-        </SafeAreaView>
+      {/* Add Account / Card Modal */}
+      <AddAccountOrCardModal
+        visible={addEntityVisible}
+        onClose={() => setAddEntityVisible(false)}
+        accounts={accounts}
+        baseCurrency={baseCurrency}
+        onSaveAccount={(acc) => {
+          createAccount(acc);
+          loadData();
+        }}
+        onSaveCard={(c) => {
+          createCard(c);
+          loadData();
+        }}
+      />
+
+      {/* Set Category Budgets Modal */}
+      <SetBudgetModal
+        visible={setBudgetVisible}
+        onClose={() => setSetBudgetVisible(false)}
+        categories={categories}
+        baseCurrency={baseCurrency}
+        onSaveBudget={handleSaveBudget}
+      />
+
+      {/* Add Recurring Bill Modal */}
+      <AddRecurringBillModal
+        visible={addRecurringVisible}
+        onClose={() => setAddRecurringVisible(false)}
+        categories={categories}
+        accounts={accounts}
+        cards={cards}
+        baseCurrency={baseCurrency}
+        onSave={handleSaveRecurring}
+      />
+
+      {/* Settings & Preferences Modal */}
+      <SettingsBackupModal
+        visible={settingsVisible}
+        onClose={() => setSettingsVisible(false)}
+        baseCurrency={baseCurrency}
+        onBaseCurrencyChange={handleBaseCurrencyChange}
+        onDataReload={loadData}
+      />
+    </SafeAreaView>
+  );
+}
+
+export default function App() {
+  return (
+    <SafeAreaProvider>
+      <BiometricGate>
+        <MainAppContent />
       </BiometricGate>
     </SafeAreaProvider>
   );
@@ -606,166 +651,204 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: CozyTheme.background,
+  },
+  topAppBar: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    paddingBottom: 6,
   },
-  container: {
-    flex: 1,
-    width: '100%',
-    maxWidth: 540,
-    backgroundColor: CozyTheme.background,
+  brandGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
-  scrollContent: {
-    paddingBottom: 95,
+  brandTitle: {
+    fontSize: 22,
+    fontWeight: '900',
+    color: CozyTheme.textPrimary,
+    letterSpacing: -0.6,
+  },
+  badgeOffline: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: CozyTheme.surfaceElevated,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+    gap: 4,
+    borderWidth: 1,
+    borderColor: CozyTheme.border,
+  },
+  badgeOfflineText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: CozyTheme.income,
+  },
+  settingsButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: CozyTheme.surface,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: CozyTheme.border,
   },
   tabNavRow: {
     flexDirection: 'row',
     backgroundColor: CozyTheme.surface,
-    padding: 4,
-    borderRadius: 14,
-    marginHorizontal: 22,
-    marginTop: 6,
-    marginBottom: 8,
+    padding: 3,
+    borderRadius: 12,
+    marginHorizontal: 16,
+    marginTop: 4,
+    marginBottom: 6,
     borderWidth: 1,
     borderColor: CozyTheme.border,
-    width: '90%',
-    maxWidth: 500,
   },
   tabNavButton: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 8,
-    borderRadius: 10,
-    gap: 6,
+    paddingVertical: 7,
+    borderRadius: 9,
+    gap: 5,
   },
   tabNavButtonActive: {
     backgroundColor: CozyTheme.textPrimary,
   },
   tabNavText: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '700',
     color: CozyTheme.textSecondary,
   },
   tabNavTextActive: {
     color: CozyTheme.textInverse,
   },
+  container: {
+    flex: 1,
+    backgroundColor: CozyTheme.background,
+  },
+  scrollContent: {
+    paddingBottom: 95,
+  },
   statsGrid: {
     flexDirection: 'row',
-    paddingHorizontal: 22,
-    gap: 12,
-    marginTop: 6,
+    paddingHorizontal: 16,
+    gap: 10,
     marginBottom: 6,
   },
   statBox: {
     flex: 1,
     backgroundColor: CozyTheme.surface,
-    padding: 14,
-    borderRadius: 16,
+    padding: 12,
+    borderRadius: 14,
     borderWidth: 1,
     borderColor: CozyTheme.border,
   },
   statHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    marginBottom: 4,
+    gap: 5,
+    marginBottom: 3,
   },
   statLabel: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '700',
     color: CozyTheme.textSecondary,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
   statAmountExpense: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '800',
     color: CozyTheme.expense,
-    letterSpacing: -0.4,
+    letterSpacing: -0.3,
   },
   statAmountIncome: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '800',
     color: CozyTheme.income,
-    letterSpacing: -0.4,
+    letterSpacing: -0.3,
   },
   feedHeaderRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 22,
+    paddingHorizontal: 16,
     marginTop: 10,
-    marginBottom: 10,
+    marginBottom: 8,
   },
   feedTitleGroup: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 6,
   },
   feedTitle: {
-    fontSize: 13,
+    fontSize: 11,
     fontWeight: '700',
     color: CozyTheme.textSecondary,
-    textTransform: 'uppercase',
     letterSpacing: 0.8,
   },
   transactionCountText: {
-    fontSize: 12,
+    fontSize: 11,
     color: CozyTheme.textTertiary,
     fontWeight: '600',
   },
   transactionsList: {
-    paddingHorizontal: 22,
+    paddingHorizontal: 16,
   },
   emptyContainer: {
     backgroundColor: CozyTheme.surface,
-    padding: 30,
-    borderRadius: 20,
+    padding: 24,
+    borderRadius: 18,
     alignItems: 'center',
     borderWidth: 1,
     borderColor: CozyTheme.border,
-    marginTop: 4,
+    marginTop: 2,
+    borderStyle: 'dashed',
   },
   emptyIconCircle: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: CozyTheme.surfaceElevated,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 10,
+    marginBottom: 8,
   },
   emptyTitle: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '800',
     color: CozyTheme.textPrimary,
   },
   emptySubtitle: {
-    fontSize: 13,
+    fontSize: 12,
     color: CozyTheme.textSecondary,
     textAlign: 'center',
-    marginTop: 6,
-    lineHeight: 18,
-    paddingHorizontal: 12,
+    marginTop: 4,
+    lineHeight: 16,
+    paddingHorizontal: 8,
   },
   emptyAddButton: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: CozyTheme.textPrimary,
-    paddingVertical: 10,
-    paddingHorizontal: 18,
-    borderRadius: 14,
-    marginTop: 16,
+    paddingVertical: 9,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    marginTop: 14,
   },
   emptyAddButtonText: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '700',
     color: CozyTheme.textInverse,
   },
   fabContainer: {
     position: 'absolute',
-    bottom: 22,
     left: 0,
     right: 0,
     alignItems: 'center',
@@ -774,19 +857,19 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: CozyTheme.textPrimary,
-    paddingVertical: 13,
-    paddingHorizontal: 22,
-    borderRadius: 26,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 24,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.45,
-    shadowRadius: 12,
+    shadowOpacity: 0.5,
+    shadowRadius: 10,
     elevation: 8,
-    gap: 7,
+    gap: 6,
   },
   fabText: {
-    fontSize: 14,
-    fontWeight: '700',
+    fontSize: 13,
+    fontWeight: '800',
     color: CozyTheme.textInverse,
     letterSpacing: -0.2,
   },

@@ -5,10 +5,10 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
-  Dimensions,
+  useWindowDimensions,
 } from 'react-native';
-import Svg, { Circle, G, Text as SvgText, Rect } from 'react-native-svg';
-import { PieChart, TrendingUp, ArrowDownRight, ArrowUpRight, Wallet, Percent } from 'lucide-react-native';
+import Svg, { Circle, G } from 'react-native-svg';
+import { PieChart, ArrowDownRight, ArrowUpRight, Percent } from 'lucide-react-native';
 import { CozyTheme } from '../theme/colors';
 import { Category, Transaction } from '../types';
 import { formatMoney } from '../utils/currency';
@@ -25,6 +25,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
   categories,
   baseCurrency,
 }) => {
+  const { width: screenWidth } = useWindowDimensions();
   const [timeframe, setTimeframe] = useState<'this_month' | 'all'>('this_month');
 
   const now = new Date();
@@ -69,16 +70,20 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
     })
     .sort((a, b) => b.amountCents - a.amountCents);
 
-  // SVG Donut geometry
-  const size = 220;
-  const strokeWidth = 24;
-  const radius = (size - strokeWidth) / 2;
+  // Responsive SVG Donut geometry
+  const chartSize = Math.min(Math.max(screenWidth * 0.52, 180), 210);
+  const strokeWidth = 22;
+  const radius = (chartSize - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
 
   let accumulatedPct = 0;
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={styles.scrollContent}
+      showsVerticalScrollIndicator={false}
+    >
       {/* Timeframe selector */}
       <View style={styles.timeframeRow}>
         <TouchableOpacity
@@ -87,6 +92,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
             triggerLightHaptic();
             setTimeframe('this_month');
           }}
+          activeOpacity={0.7}
         >
           <Text style={[styles.timePillText, timeframe === 'this_month' && styles.timePillTextSelected]}>
             {monthName}
@@ -99,6 +105,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
             triggerLightHaptic();
             setTimeframe('all');
           }}
+          activeOpacity={0.7}
         >
           <Text style={[styles.timePillText, timeframe === 'all' && styles.timePillTextSelected]}>
             All Time
@@ -110,20 +117,20 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
       <View style={styles.cashFlowGrid}>
         <View style={styles.cashFlowCard}>
           <View style={styles.cardHeaderRow}>
-            <ArrowDownRight size={14} color={CozyTheme.expense} />
-            <Text style={styles.cardHeaderLabel}>Total Spent</Text>
+            <ArrowDownRight size={13} color={CozyTheme.expense} />
+            <Text style={styles.cardHeaderLabel}>Spent</Text>
           </View>
-          <Text style={styles.cardAmountExpense}>
+          <Text style={styles.cardAmountExpense} numberOfLines={1}>
             {formatMoney(totalExpenseCents, baseCurrency)}
           </Text>
         </View>
 
         <View style={styles.cashFlowCard}>
           <View style={styles.cardHeaderRow}>
-            <ArrowUpRight size={14} color={CozyTheme.income} />
-            <Text style={styles.cardHeaderLabel}>Total Income</Text>
+            <ArrowUpRight size={13} color={CozyTheme.income} />
+            <Text style={styles.cardHeaderLabel}>Income</Text>
           </View>
-          <Text style={styles.cardAmountIncome}>
+          <Text style={styles.cardAmountIncome} numberOfLines={1}>
             {formatMoney(totalIncomeCents, baseCurrency)}
           </Text>
         </View>
@@ -138,6 +145,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
               styles.netSavingsAmount,
               { color: netSavingsCents >= 0 ? CozyTheme.income : CozyTheme.expense },
             ]}
+            numberOfLines={1}
           >
             {netSavingsCents >= 0 ? '+' : ''}
             {formatMoney(netSavingsCents, baseCurrency)}
@@ -145,14 +153,14 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
         </View>
 
         <View style={styles.savingsRateBadge}>
-          <Percent size={12} color={CozyTheme.income} />
+          <Percent size={11} color={CozyTheme.income} />
           <Text style={styles.savingsRateText}>{savingsRate}% saved</Text>
         </View>
       </View>
 
       {/* Cash Flow Visual Bar Comparison */}
       <View style={styles.chartBox}>
-        <Text style={styles.chartTitle}>Cash Flow Balance</Text>
+        <Text style={styles.chartTitle}>CASH FLOW BALANCE</Text>
         <View style={styles.flowBarContainer}>
           <View style={styles.flowBarRow}>
             <Text style={styles.flowBarLabel}>Income</Text>
@@ -161,55 +169,71 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
                 style={[
                   styles.flowBarFill,
                   {
-                    width: totalIncomeCents > 0 || totalExpenseCents > 0
-                      ? `${Math.min(100, Math.round((totalIncomeCents / Math.max(totalIncomeCents, totalExpenseCents, 1)) * 100))}%`
-                      : '0%',
+                    width:
+                      totalIncomeCents > 0 || totalExpenseCents > 0
+                        ? `${Math.min(
+                            100,
+                            Math.round(
+                              (totalIncomeCents / Math.max(totalIncomeCents, totalExpenseCents, 1)) * 100
+                            )
+                          )}%`
+                        : '0%',
                     backgroundColor: CozyTheme.income,
                   },
                 ]}
               />
             </View>
-            <Text style={styles.flowBarVal}>{formatMoney(totalIncomeCents, baseCurrency)}</Text>
+            <Text style={styles.flowBarVal} numberOfLines={1}>
+              {formatMoney(totalIncomeCents, baseCurrency)}
+            </Text>
           </View>
 
           <View style={styles.flowBarRow}>
-            <Text style={styles.flowBarLabel}>Expenses</Text>
+            <Text style={styles.flowBarLabel}>Expense</Text>
             <View style={styles.flowBarTrack}>
               <View
                 style={[
                   styles.flowBarFill,
                   {
-                    width: totalIncomeCents > 0 || totalExpenseCents > 0
-                      ? `${Math.min(100, Math.round((totalExpenseCents / Math.max(totalIncomeCents, totalExpenseCents, 1)) * 100))}%`
-                      : '0%',
+                    width:
+                      totalIncomeCents > 0 || totalExpenseCents > 0
+                        ? `${Math.min(
+                            100,
+                            Math.round(
+                              (totalExpenseCents / Math.max(totalIncomeCents, totalExpenseCents, 1)) * 100
+                            )
+                          )}%`
+                        : '0%',
                     backgroundColor: CozyTheme.expense,
                   },
                 ]}
               />
             </View>
-            <Text style={styles.flowBarVal}>{formatMoney(totalExpenseCents, baseCurrency)}</Text>
+            <Text style={styles.flowBarVal} numberOfLines={1}>
+              {formatMoney(totalExpenseCents, baseCurrency)}
+            </Text>
           </View>
         </View>
       </View>
 
       {/* Category Spend Donut Chart */}
       <View style={styles.chartBox}>
-        <Text style={styles.chartTitle}>Expense Breakdown</Text>
+        <Text style={styles.chartTitle}>SPENDING BREAKDOWN</Text>
         {totalExpenseCents === 0 ? (
           <View style={styles.emptyChart}>
-            <PieChart size={32} color={CozyTheme.textTertiary} style={{ marginBottom: 8 }} />
+            <PieChart size={28} color={CozyTheme.textTertiary} style={{ marginBottom: 6 }} />
             <Text style={styles.emptyChartTitle}>No Expense Data</Text>
-            <Text style={styles.emptyChartSub}>Record expense transactions to see spending breakdown</Text>
+            <Text style={styles.emptyChartSub}>Record expense transactions to view category distribution</Text>
           </View>
         ) : (
           <View style={styles.donutWrapper}>
-            <View style={styles.svgContainer}>
-              <Svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
-                <G rotation="-90" origin={`${size / 2}, ${size / 2}`}>
+            <View style={[styles.svgContainer, { width: chartSize, height: chartSize }]}>
+              <Svg width={chartSize} height={chartSize} viewBox={`0 0 ${chartSize} ${chartSize}`}>
+                <G rotation="-90" origin={`${chartSize / 2}, ${chartSize / 2}`}>
                   {/* Background Track */}
                   <Circle
-                    cx={size / 2}
-                    cy={size / 2}
+                    cx={chartSize / 2}
+                    cy={chartSize / 2}
                     r={radius}
                     stroke={CozyTheme.surfaceElevated}
                     strokeWidth={strokeWidth}
@@ -224,8 +248,8 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
                     return (
                       <Circle
                         key={slice.id}
-                        cx={size / 2}
-                        cy={size / 2}
+                        cx={chartSize / 2}
+                        cy={chartSize / 2}
                         r={radius}
                         stroke={slice.color}
                         strokeWidth={strokeWidth}
@@ -241,8 +265,8 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
 
               {/* Center Total Overlay */}
               <View style={styles.donutCenter}>
-                <Text style={styles.donutCenterLabel}>Total Spent</Text>
-                <Text style={styles.donutCenterAmount}>
+                <Text style={styles.donutCenterLabel}>TOTAL SPENT</Text>
+                <Text style={styles.donutCenterAmount} numberOfLines={1}>
                   {formatMoney(totalExpenseCents, baseCurrency)}
                 </Text>
               </View>
@@ -256,7 +280,9 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
                   <View key={slice.id} style={styles.legendItem}>
                     <View style={styles.legendLeft}>
                       <View style={[styles.legendDot, { backgroundColor: slice.color }]} />
-                      <Text style={styles.legendName}>{slice.name}</Text>
+                      <Text style={styles.legendName} numberOfLines={1}>
+                        {slice.name}
+                      </Text>
                     </View>
                     <View style={styles.legendRight}>
                       <Text style={styles.legendAmount}>
@@ -281,30 +307,30 @@ const styles = StyleSheet.create({
     backgroundColor: CozyTheme.background,
   },
   scrollContent: {
-    paddingHorizontal: 22,
+    paddingHorizontal: 16,
     paddingBottom: 110,
-    paddingTop: 10,
+    paddingTop: 8,
   },
   timeframeRow: {
     flexDirection: 'row',
     backgroundColor: CozyTheme.surface,
-    padding: 4,
-    borderRadius: 14,
+    padding: 3,
+    borderRadius: 12,
     borderWidth: 1,
     borderColor: CozyTheme.border,
-    marginBottom: 14,
+    marginBottom: 10,
   },
   timePill: {
     flex: 1,
-    paddingVertical: 8,
+    paddingVertical: 7,
     alignItems: 'center',
-    borderRadius: 10,
+    borderRadius: 9,
   },
   timePillSelected: {
     backgroundColor: CozyTheme.textPrimary,
   },
   timePillText: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '700',
     color: CozyTheme.textSecondary,
   },
@@ -313,36 +339,36 @@ const styles = StyleSheet.create({
   },
   cashFlowGrid: {
     flexDirection: 'row',
-    gap: 10,
-    marginBottom: 10,
+    gap: 8,
+    marginBottom: 8,
   },
   cashFlowCard: {
     flex: 1,
     backgroundColor: CozyTheme.surface,
-    padding: 14,
-    borderRadius: 16,
+    padding: 13,
+    borderRadius: 14,
     borderWidth: 1,
     borderColor: CozyTheme.border,
   },
   cardHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 5,
     marginBottom: 4,
   },
   cardHeaderLabel: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '700',
     color: CozyTheme.textSecondary,
     textTransform: 'uppercase',
   },
   cardAmountExpense: {
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: '800',
     color: CozyTheme.expense,
   },
   cardAmountIncome: {
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: '800',
     color: CozyTheme.income,
   },
@@ -351,80 +377,83 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     backgroundColor: CozyTheme.surface,
-    padding: 16,
-    borderRadius: 16,
+    padding: 14,
+    borderRadius: 14,
     borderWidth: 1,
     borderColor: CozyTheme.border,
-    marginBottom: 14,
+    marginBottom: 10,
   },
-  netSavingsLeft: {},
+  netSavingsLeft: {
+    flex: 1,
+  },
   netSavingsLabel: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '700',
     color: CozyTheme.textSecondary,
     textTransform: 'uppercase',
   },
   netSavingsAmount: {
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: '900',
     marginTop: 2,
-    letterSpacing: -0.5,
+    letterSpacing: -0.4,
   },
   savingsRateBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: CozyTheme.incomeSoft,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 10,
-    gap: 5,
+    paddingHorizontal: 9,
+    paddingVertical: 5,
+    borderRadius: 8,
+    gap: 4,
   },
   savingsRateText: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '700',
     color: CozyTheme.income,
   },
   chartBox: {
     backgroundColor: CozyTheme.surface,
-    padding: 18,
-    borderRadius: 20,
+    padding: 16,
+    borderRadius: 18,
     borderWidth: 1,
     borderColor: CozyTheme.border,
-    marginBottom: 14,
+    marginBottom: 10,
   },
   chartTitle: {
-    fontSize: 14,
-    fontWeight: '800',
-    color: CozyTheme.textPrimary,
-    marginBottom: 14,
+    fontSize: 11,
+    fontWeight: '700',
+    color: CozyTheme.textSecondary,
+    letterSpacing: 0.8,
+    marginBottom: 12,
   },
   flowBarContainer: {
-    gap: 12,
+    gap: 10,
   },
   flowBarRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 8,
   },
   flowBarLabel: {
-    width: 65,
-    fontSize: 12,
+    width: 55,
+    fontSize: 11,
     fontWeight: '600',
     color: CozyTheme.textSecondary,
   },
   flowBarTrack: {
     flex: 1,
-    height: 10,
+    height: 8,
     backgroundColor: CozyTheme.surfaceElevated,
-    borderRadius: 5,
+    borderRadius: 4,
     overflow: 'hidden',
   },
   flowBarFill: {
     height: '100%',
-    borderRadius: 5,
+    borderRadius: 4,
   },
   flowBarVal: {
-    width: 75,
+    minWidth: 70,
     fontSize: 11,
     fontWeight: '700',
     color: CozyTheme.textPrimary,
@@ -434,31 +463,29 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   svgContainer: {
-    width: 220,
-    height: 220,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 14,
   },
   donutCenter: {
     position: 'absolute',
     alignItems: 'center',
   },
   donutCenterLabel: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '600',
     color: CozyTheme.textSecondary,
-    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   donutCenterAmount: {
-    fontSize: 18,
-    fontWeight: '800',
+    fontSize: 16,
+    fontWeight: '900',
     color: CozyTheme.textPrimary,
     marginTop: 2,
   },
   legendContainer: {
     width: '100%',
-    gap: 8,
+    gap: 6,
   },
   legendItem: {
     flexDirection: 'row',
@@ -466,53 +493,54 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 6,
     borderBottomWidth: 1,
-    borderBottomColor: CozyTheme.border,
+    borderBottomColor: CozyTheme.borderLight,
   },
   legendLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 7,
+    flex: 1,
   },
   legendDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
   },
   legendName: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '600',
     color: CozyTheme.textPrimary,
   },
   legendRight: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 6,
   },
   legendAmount: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '700',
     color: CozyTheme.textPrimary,
   },
   legendPct: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '600',
     color: CozyTheme.textTertiary,
-    width: 32,
+    width: 28,
     textAlign: 'right',
   },
   emptyChart: {
     alignItems: 'center',
-    paddingVertical: 24,
+    paddingVertical: 20,
   },
   emptyChartTitle: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '700',
     color: CozyTheme.textPrimary,
   },
   emptyChartSub: {
-    fontSize: 12,
+    fontSize: 11,
     color: CozyTheme.textSecondary,
     textAlign: 'center',
-    marginTop: 4,
+    marginTop: 3,
   },
 });

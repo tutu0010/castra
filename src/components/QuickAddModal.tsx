@@ -467,7 +467,7 @@ const styles = StyleSheet.create({
     borderColor: CozyTheme.border,
     paddingTop: 16,
     paddingBottom: 34,
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
   },
   modalHeader: {
     flexDirection: 'row',

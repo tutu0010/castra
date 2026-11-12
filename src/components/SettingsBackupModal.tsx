@@ -281,7 +281,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: CozyTheme.background,
     paddingTop: 16,
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
   },
   header: {
     flexDirection: 'row',
