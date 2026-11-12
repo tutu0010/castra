@@ -1,38 +1,38 @@
 export const CozyTheme = {
-  // Dark Cozy Canvas & Surfaces
-  background: '#11100E',        // Deep warm onyx
-  surface: '#1A1816',           // Matte dark charcoal card
-  surfaceElevated: '#24211D',   // Elevated surface
-  surfaceMuted: '#2B2723',      // Subtle tag/pill background
+  // High-Contrast Dark Canvas & Surfaces
+  background: '#090807',        // Deep obsidian black
+  surface: '#151311',           // Matte elevated dark card
+  surfaceElevated: '#211D1A',   // Secondary elevated container
+  surfaceMuted: '#2B2621',      // Pill tags, action chips
   
-  // Borders & Dividers
-  border: '#292521',
-  borderLight: '#201D1A',
-  borderStrong: '#3D3731',
+  // High-Legibility Borders & Dividers
+  border: '#2A2520',
+  borderLight: '#1E1A16',
+  borderStrong: '#3E3730',
 
-  // Text Hierarchy
-  textPrimary: '#F4F1EA',       // Crisp warm white
-  textSecondary: '#9A9287',     // Muted warm stone
-  textTertiary: '#5C554C',      // Subtle tertiary
-  textInverse: '#11100E',
+  // High-Contrast Text Hierarchy
+  textPrimary: '#FFFFFF',       // 100% Crisp white (maximum legibility)
+  textSecondary: '#A8A196',     // Clean readable stone gray
+  textTertiary: '#756D63',      // Subtle metadata
+  textInverse: '#090807',
 
-  // Semantic Accents (Refined & Non-Neon)
-  expense: '#E06A55',           // Warm terracotta
-  expenseSoft: 'rgba(224, 106, 85, 0.14)',
-  income: '#4FA372',            // Earthy forest emerald
-  incomeSoft: 'rgba(79, 163, 114, 0.14)',
-  transfer: '#6E90BA',          // Slate denim
-  transferSoft: 'rgba(110, 144, 186, 0.14)',
-  warning: '#DDA04B',           // Warm gold
-  warningSoft: 'rgba(221, 160, 75, 0.14)',
+  // High-Vibrancy Semantic Accents
+  expense: '#F87171',           // Crisp clear coral red
+  expenseSoft: 'rgba(239, 68, 68, 0.16)',
+  income: '#34D399',            // Crisp clear emerald green
+  incomeSoft: 'rgba(52, 211, 153, 0.16)',
+  transfer: '#60A5FA',          // Crisp sky blue
+  transferSoft: 'rgba(96, 165, 250, 0.16)',
+  warning: '#FBBF24',           // Warm gold
+  warningSoft: 'rgba(251, 191, 36, 0.16)',
 
-  // Sleek Minimalist Card Deck Presets
+  // Card Colors
   cardColors: [
-    { id: 'titanium', name: 'Dark Titanium', hex: '#1F2227', text: '#F4F1EA', accent: '#3E444E' },
-    { id: 'slate', name: 'Midnight Slate', hex: '#1E252E', text: '#F4F1EA', accent: '#414D5E' },
-    { id: 'bronze', name: 'Espresso Bronze', hex: '#2A201A', text: '#F4F1EA', accent: '#5E493E' },
-    { id: 'forest', name: 'Deep Olive', hex: '#1C261E', text: '#F4F1EA', accent: '#3F5443' },
-    { id: 'terracotta', name: 'Earthy Clay', hex: '#301C17', text: '#F4F1EA', accent: '#693F34' },
-    { id: 'indigo', name: 'Subdued Indigo', hex: '#20222F', text: '#F4F1EA', accent: '#464B66' },
+    { id: 'slate', name: 'Obsidian Slate', hex: '#1C222B', text: '#FFFFFF', accent: '#3B475A' },
+    { id: 'titanium', name: 'Graphite', hex: '#1D1E22', text: '#FFFFFF', accent: '#3C3F47' },
+    { id: 'emerald', name: 'Deep Emerald', hex: '#13281E', text: '#FFFFFF', accent: '#27523E' },
+    { id: 'bronze', name: 'Warm Espresso', hex: '#2A1F18', text: '#FFFFFF', accent: '#5A4334' },
+    { id: 'crimson', name: 'Burgundy', hex: '#2F1819', text: '#FFFFFF', accent: '#623335' },
+    { id: 'indigo', name: 'Royal Indigo', hex: '#1B1F33', text: '#FFFFFF', accent: '#373F68' },
   ],
 };

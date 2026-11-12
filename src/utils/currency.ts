@@ -7,10 +7,10 @@ export interface CurrencyInfo {
 }
 
 export const SUPPORTED_CURRENCIES: Record<string, CurrencyInfo> = {
+  INR: { code: 'INR', symbol: '₹', name: 'Indian Rupee', rateToUSD: 0.012, decimals: 2 },
   USD: { code: 'USD', symbol: '$', name: 'US Dollar', rateToUSD: 1.0, decimals: 2 },
   EUR: { code: 'EUR', symbol: '€', name: 'Euro', rateToUSD: 1.08, decimals: 2 },
   GBP: { code: 'GBP', symbol: '£', name: 'British Pound', rateToUSD: 1.28, decimals: 2 },
-  INR: { code: 'INR', symbol: '₹', name: 'Indian Rupee', rateToUSD: 0.012, decimals: 2 },
   JPY: { code: 'JPY', symbol: '¥', name: 'Japanese Yen', rateToUSD: 0.0065, decimals: 0 },
   CAD: { code: 'CAD', symbol: 'CA$', name: 'Canadian Dollar', rateToUSD: 0.73, decimals: 2 },
   AUD: { code: 'AUD', symbol: 'A$', name: 'Australian Dollar', rateToUSD: 0.65, decimals: 2 },
@@ -25,7 +25,7 @@ export function getCurrencySymbol(code: string): string {
 
 export function formatMoney(
   cents: number,
-  currencyCode: string = 'USD',
+  currencyCode: string = 'INR',
   options?: { showSign?: boolean; absolute?: boolean }
 ): string {
   const currency = SUPPORTED_CURRENCIES[currencyCode] || {
@@ -40,7 +40,8 @@ export function formatMoney(
   const absCents = Math.abs(cents);
   const units = currency.decimals === 0 ? absCents : absCents / 100;
 
-  const formattedNum = units.toLocaleString(undefined, {
+  const locale = currencyCode === 'INR' ? 'en-IN' : undefined;
+  const formattedNum = units.toLocaleString(locale, {
     minimumFractionDigits: currency.decimals,
     maximumFractionDigits: currency.decimals,
   });
@@ -69,7 +70,6 @@ export function convertCurrency(
   const fromInfo = SUPPORTED_CURRENCIES[fromCurrency] || { rateToUSD: 1.0 };
   const toInfo = SUPPORTED_CURRENCIES[toCurrency] || { rateToUSD: 1.0 };
 
-  // rate = (from in USD) / (to in USD)
   const rate = fromInfo.rateToUSD / toInfo.rateToUSD;
   const convertedCents = Math.round(amountCents * rate);
 

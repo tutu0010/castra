@@ -23,7 +23,7 @@ interface AddAccountOrCardModalProps {
   onSaveCard: (card: Omit<Card, 'created_at'>) => void;
 }
 
-type TabType = 'credit' | 'debit' | 'bank' | 'wallet';
+type TabType = 'bank' | 'credit' | 'debit' | 'wallet';
 
 export const AddAccountOrCardModal: React.FC<AddAccountOrCardModalProps> = ({
   visible,
@@ -33,11 +33,11 @@ export const AddAccountOrCardModal: React.FC<AddAccountOrCardModalProps> = ({
   onSaveAccount,
   onSaveCard,
 }) => {
-  const [activeTab, setActiveTab] = useState<TabType>('credit');
+  const [activeTab, setActiveTab] = useState<TabType>('bank');
   const [name, setName] = useState<string>('');
-  const [currency, setCurrency] = useState<string>(baseCurrency);
+  const [currency, setCurrency] = useState<string>(baseCurrency || 'INR');
   const [balanceStr, setBalanceStr] = useState<string>('0');
-  const [limitStr, setLimitStr] = useState<string>('5000');
+  const [limitStr, setLimitStr] = useState<string>('50000');
   const [statementDayStr, setStatementDayStr] = useState<string>('20');
   const [dueDayStr, setDueDayStr] = useState<string>('10');
   const [last4, setLast4] = useState<string>('');
@@ -92,272 +92,260 @@ export const AddAccountOrCardModal: React.FC<AddAccountOrCardModalProps> = ({
       });
     }
 
-    // Reset
     setName('');
     setLast4('');
+    setBalanceStr('0');
     onClose();
   };
 
   return (
-    <Modal visible={visible} animationType="slide" transparent>
-      <View style={styles.modalOverlay}>
-        <View style={styles.modalContainer}>
-          {/* Header */}
-          <View style={styles.header}>
-            <Text style={styles.headerTitle}>Add New Entity</Text>
+    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet">
+      <View style={styles.container}>
+        {/* Header */}
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>Add New Entity</Text>
+          <TouchableOpacity
+            onPress={() => {
+              triggerLightHaptic();
+              onClose();
+            }}
+            style={styles.closeBtn}
+          >
+            <X size={18} color={CozyTheme.textPrimary} />
+          </TouchableOpacity>
+        </View>
+
+        {/* Tab Selector */}
+        <View style={styles.tabsRow}>
+          {(['bank', 'credit', 'debit', 'wallet'] as TabType[]).map(tab => (
             <TouchableOpacity
+              key={tab}
+              style={[styles.tab, activeTab === tab && styles.tabActive]}
               onPress={() => {
                 triggerLightHaptic();
-                onClose();
+                setActiveTab(tab);
               }}
-              style={styles.closeBtn}
             >
-              <X size={20} color={CozyTheme.textSecondary} />
+              <Text style={[styles.tabText, activeTab === tab && styles.tabTextActive]}>
+                {tab === 'bank'
+                  ? 'Bank'
+                  : tab === 'credit'
+                  ? 'Credit Card'
+                  : tab === 'debit'
+                  ? 'Debit'
+                  : 'Wallet'}
+              </Text>
             </TouchableOpacity>
-          </View>
+          ))}
+        </View>
 
-          {/* Type Selector Tabs */}
-          <View style={styles.tabsRow}>
-            {(['credit', 'debit', 'bank', 'wallet'] as TabType[]).map(tab => (
+        <ScrollView style={styles.formScroll} showsVerticalScrollIndicator={false}>
+          {/* Name */}
+          <Text style={styles.inputLabel}>Name / Title</Text>
+          <TextInput
+            style={styles.textInput}
+            placeholder={
+              activeTab === 'bank'
+                ? 'e.g. HDFC Salary, SBI Savings'
+                : activeTab === 'credit'
+                ? 'e.g. ICICI Amazon Pay, Millennia'
+                : activeTab === 'debit'
+                ? 'e.g. Primary ATM Card'
+                : 'e.g. Cash Pocket, UPI Wallet'
+            }
+            placeholderTextColor={CozyTheme.textTertiary}
+            value={name}
+            onChangeText={setName}
+          />
+
+          {/* Currency */}
+          <Text style={styles.inputLabel}>Currency</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.pillRow}>
+            {Object.keys(SUPPORTED_CURRENCIES).map(c => (
               <TouchableOpacity
-                key={tab}
-                style={[styles.tab, activeTab === tab && styles.tabActive]}
+                key={c}
+                style={[styles.smallPill, currency === c && styles.smallPillActive]}
                 onPress={() => {
                   triggerLightHaptic();
-                  setActiveTab(tab);
+                  setCurrency(c);
                 }}
               >
-                <Text style={[styles.tabText, activeTab === tab && styles.tabTextActive]}>
-                  {tab === 'credit'
-                    ? 'Credit Card'
-                    : tab === 'debit'
-                    ? 'Debit Card'
-                    : tab === 'bank'
-                    ? 'Bank'
-                    : 'Wallet'}
+                <Text style={[styles.smallPillText, currency === c && styles.smallPillTextActive]}>
+                  {c}
                 </Text>
               </TouchableOpacity>
             ))}
-          </View>
+          </ScrollView>
 
-          <ScrollView style={styles.formScroll} showsVerticalScrollIndicator={false}>
-            {/* Name Input */}
-            <Text style={styles.inputLabel}>Name / Nickname</Text>
-            <TextInput
-              style={styles.textInput}
-              placeholder={
-                activeTab === 'credit'
-                  ? 'e.g. Amex Gold, Sapphire'
-                  : activeTab === 'debit'
-                  ? 'e.g. Everyday Debit'
-                  : activeTab === 'bank'
-                  ? 'e.g. Chase Premier Checking'
-                  : 'e.g. Cash Pocket, PayPal'
-              }
-              placeholderTextColor={CozyTheme.textTertiary}
-              value={name}
-              onChangeText={setName}
-            />
+          {/* Balance for Bank & Wallet */}
+          {(activeTab === 'bank' || activeTab === 'wallet') && (
+            <View>
+              <Text style={styles.inputLabel}>Starting Balance (₹)</Text>
+              <TextInput
+                style={styles.textInput}
+                keyboardType="numeric"
+                placeholder="0"
+                placeholderTextColor={CozyTheme.textTertiary}
+                value={balanceStr}
+                onChangeText={setBalanceStr}
+              />
+            </View>
+          )}
 
-            {/* Currency Selector */}
-            <Text style={styles.inputLabel}>Currency</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.pillRow}>
-              {Object.keys(SUPPORTED_CURRENCIES).map(c => (
-                <TouchableOpacity
-                  key={c}
-                  style={[styles.smallPill, currency === c && styles.smallPillActive]}
-                  onPress={() => {
-                    triggerLightHaptic();
-                    setCurrency(c);
-                  }}
-                >
-                  <Text style={[styles.smallPillText, currency === c && styles.smallPillTextActive]}>
-                    {c}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-
-            {/* Specific fields for Bank / Wallet */}
-            {(activeTab === 'bank' || activeTab === 'wallet') && (
-              <View>
-                <Text style={styles.inputLabel}>Starting Balance</Text>
-                <TextInput
-                  style={styles.textInput}
-                  keyboardType="numeric"
-                  placeholder="0.00"
-                  placeholderTextColor={CozyTheme.textTertiary}
-                  value={balanceStr}
-                  onChangeText={setBalanceStr}
-                />
-              </View>
-            )}
-
-            {/* Specific fields for Debit Card */}
-            {activeTab === 'debit' && (
-              <View>
-                <Text style={styles.inputLabel}>Linked Bank Account</Text>
+          {/* Debit Card linking */}
+          {activeTab === 'debit' && (
+            <View>
+              <Text style={styles.inputLabel}>Linked Bank Account</Text>
+              {accounts.filter(a => a.type === 'bank').length === 0 ? (
+                <Text style={styles.hintNotice}>Add a Bank Account first to link this card.</Text>
+              ) : (
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.pillRow}>
                   {accounts
                     .filter(a => a.type === 'bank')
                     .map(a => (
                       <TouchableOpacity
                         key={a.id}
-                        style={[
-                          styles.smallPill,
-                          selectedBankId === a.id && styles.smallPillActive,
-                        ]}
+                        style={[styles.smallPill, selectedBankId === a.id && styles.smallPillActive]}
                         onPress={() => {
                           triggerLightHaptic();
                           setSelectedBankId(a.id);
                         }}
                       >
-                        <Text
-                          style={[
-                            styles.smallPillText,
-                            selectedBankId === a.id && styles.smallPillTextActive,
-                          ]}
-                        >
+                        <Text style={[styles.smallPillText, selectedBankId === a.id && styles.smallPillTextActive]}>
                           {a.name}
                         </Text>
                       </TouchableOpacity>
                     ))}
                 </ScrollView>
-              </View>
-            )}
+              )}
+            </View>
+          )}
 
-            {/* Specific fields for Credit Card */}
-            {activeTab === 'credit' && (
-              <View>
-                <Text style={styles.inputLabel}>Credit Limit</Text>
-                <TextInput
-                  style={styles.textInput}
-                  keyboardType="numeric"
-                  placeholder="5000"
-                  placeholderTextColor={CozyTheme.textTertiary}
-                  value={limitStr}
-                  onChangeText={setLimitStr}
-                />
+          {/* Credit Card Specs */}
+          {activeTab === 'credit' && (
+            <View>
+              <Text style={styles.inputLabel}>Credit Limit (₹)</Text>
+              <TextInput
+                style={styles.textInput}
+                keyboardType="numeric"
+                placeholder="50000"
+                placeholderTextColor={CozyTheme.textTertiary}
+                value={limitStr}
+                onChangeText={setLimitStr}
+              />
 
-                <View style={styles.rowInputs}>
-                  <View style={{ flex: 1, marginRight: 8 }}>
-                    <Text style={styles.inputLabel}>Statement Day</Text>
-                    <TextInput
-                      style={styles.textInput}
-                      keyboardType="numeric"
-                      placeholder="e.g. 20"
-                      placeholderTextColor={CozyTheme.textTertiary}
-                      value={statementDayStr}
-                      onChangeText={setStatementDayStr}
-                    />
-                  </View>
-                  <View style={{ flex: 1, marginLeft: 8 }}>
-                    <Text style={styles.inputLabel}>Payment Due Day</Text>
-                    <TextInput
-                      style={styles.textInput}
-                      keyboardType="numeric"
-                      placeholder="e.g. 10"
-                      placeholderTextColor={CozyTheme.textTertiary}
-                      value={dueDayStr}
-                      onChangeText={setDueDayStr}
-                    />
-                  </View>
+              <View style={styles.rowInputs}>
+                <View style={{ flex: 1, marginRight: 8 }}>
+                  <Text style={styles.inputLabel}>Statement Day</Text>
+                  <TextInput
+                    style={styles.textInput}
+                    keyboardType="numeric"
+                    placeholder="20"
+                    placeholderTextColor={CozyTheme.textTertiary}
+                    value={statementDayStr}
+                    onChangeText={setStatementDayStr}
+                  />
+                </View>
+                <View style={{ flex: 1, marginLeft: 8 }}>
+                  <Text style={styles.inputLabel}>Due Day</Text>
+                  <TextInput
+                    style={styles.textInput}
+                    keyboardType="numeric"
+                    placeholder="10"
+                    placeholderTextColor={CozyTheme.textTertiary}
+                    value={dueDayStr}
+                    onChangeText={setDueDayStr}
+                  />
                 </View>
               </View>
-            )}
-
-            {/* Last 4 Digits for Cards */}
-            {(activeTab === 'credit' || activeTab === 'debit') && (
-              <View>
-                <Text style={styles.inputLabel}>Card Last 4 Digits (Optional)</Text>
-                <TextInput
-                  style={styles.textInput}
-                  keyboardType="numeric"
-                  maxLength={4}
-                  placeholder="e.g. 4821"
-                  placeholderTextColor={CozyTheme.textTertiary}
-                  value={last4}
-                  onChangeText={setLast4}
-                />
-              </View>
-            )}
-
-            {/* Color Palette Selector */}
-            <Text style={styles.inputLabel}>Card & Badge Theme Color</Text>
-            <View style={styles.colorPaletteRow}>
-              {CozyTheme.cardColors.map(c => (
-                <TouchableOpacity
-                  key={c.id}
-                  style={[
-                    styles.colorCircle,
-                    { backgroundColor: c.hex },
-                    selectedColor === c.hex && styles.colorCircleSelected,
-                  ]}
-                  onPress={() => {
-                    triggerLightHaptic();
-                    setSelectedColor(c.hex);
-                  }}
-                />
-              ))}
             </View>
-          </ScrollView>
+          )}
 
-          {/* Submit */}
-          <TouchableOpacity style={styles.submitButton} onPress={handleSave} activeOpacity={0.8}>
-            <Check size={18} color={CozyTheme.textInverse} style={{ marginRight: 6 }} />
-            <Text style={styles.submitButtonText}>Create Entity</Text>
-          </TouchableOpacity>
-        </View>
+          {/* Last 4 Digits for Cards */}
+          {(activeTab === 'credit' || activeTab === 'debit') && (
+            <View>
+              <Text style={styles.inputLabel}>Last 4 Digits (Optional)</Text>
+              <TextInput
+                style={styles.textInput}
+                keyboardType="numeric"
+                maxLength={4}
+                placeholder="4821"
+                placeholderTextColor={CozyTheme.textTertiary}
+                value={last4}
+                onChangeText={setLast4}
+              />
+            </View>
+          )}
+
+          {/* Color Palette */}
+          <Text style={styles.inputLabel}>Theme Color</Text>
+          <View style={styles.colorPaletteRow}>
+            {CozyTheme.cardColors.map(c => (
+              <TouchableOpacity
+                key={c.id}
+                style={[
+                  styles.colorCircle,
+                  { backgroundColor: c.hex },
+                  selectedColor === c.hex && styles.colorCircleSelected,
+                ]}
+                onPress={() => {
+                  triggerLightHaptic();
+                  setSelectedColor(c.hex);
+                }}
+              />
+            ))}
+          </View>
+        </ScrollView>
+
+        {/* Submit */}
+        <TouchableOpacity style={styles.submitButton} onPress={handleSave} activeOpacity={0.8}>
+          <Check size={18} color={CozyTheme.textInverse} style={{ marginRight: 6 }} />
+          <Text style={styles.submitButtonText}>Save Entity</Text>
+        </TouchableOpacity>
       </View>
     </Modal>
   );
 };
 
 const styles = StyleSheet.create({
-  modalOverlay: {
+  container: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.72)',
-    justifyContent: 'flex-end',
-  },
-  modalContainer: {
-    backgroundColor: CozyTheme.surface,
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
-    borderTopWidth: 1,
-    borderLeftWidth: 1,
-    borderRightWidth: 1,
-    borderColor: CozyTheme.border,
+    backgroundColor: CozyTheme.background,
     paddingHorizontal: 20,
-    paddingTop: 18,
-    paddingBottom: 34,
-    maxHeight: '85%',
+    paddingTop: 16,
+    paddingBottom: 36,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 14,
+    marginBottom: 16,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: CozyTheme.border,
   },
   headerTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: '800',
     color: CozyTheme.textPrimary,
-    letterSpacing: -0.3,
+    letterSpacing: -0.4,
   },
   closeBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: CozyTheme.surfaceMuted,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: CozyTheme.surfaceElevated,
     justifyContent: 'center',
     alignItems: 'center',
   },
   tabsRow: {
     flexDirection: 'row',
-    backgroundColor: CozyTheme.surfaceMuted,
+    backgroundColor: CozyTheme.surface,
     borderRadius: 14,
     padding: 3,
     marginBottom: 16,
+    borderWidth: 1,
+    borderColor: CozyTheme.border,
   },
   tab: {
     flex: 1,
@@ -369,14 +357,15 @@ const styles = StyleSheet.create({
     backgroundColor: CozyTheme.textPrimary,
   },
   tabText: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '700',
     color: CozyTheme.textSecondary,
   },
   tabTextActive: {
-    color: '#FFFFFF',
+    color: CozyTheme.textInverse,
   },
   formScroll: {
+    flex: 1,
     marginBottom: 16,
   },
   inputLabel: {
@@ -386,15 +375,18 @@ const styles = StyleSheet.create({
     marginBottom: 6,
     marginTop: 10,
     textTransform: 'uppercase',
-    letterSpacing: 0.4,
+    letterSpacing: 0.5,
   },
   textInput: {
-    backgroundColor: CozyTheme.surfaceMuted,
+    backgroundColor: CozyTheme.surface,
     borderRadius: 14,
     paddingHorizontal: 14,
     paddingVertical: 12,
-    fontSize: 14,
+    fontSize: 15,
+    fontWeight: '600',
     color: CozyTheme.textPrimary,
+    borderWidth: 1,
+    borderColor: CozyTheme.border,
   },
   rowInputs: {
     flexDirection: 'row',
@@ -406,19 +398,27 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 7,
     borderRadius: 12,
-    backgroundColor: CozyTheme.surfaceMuted,
+    backgroundColor: CozyTheme.surface,
+    borderWidth: 1,
+    borderColor: CozyTheme.border,
     marginRight: 8,
   },
   smallPillActive: {
     backgroundColor: CozyTheme.textPrimary,
+    borderColor: CozyTheme.textPrimary,
   },
   smallPillText: {
     fontSize: 12,
-    fontWeight: '600',
+    fontWeight: '700',
     color: CozyTheme.textPrimary,
   },
   smallPillTextActive: {
-    color: '#FFFFFF',
+    color: CozyTheme.textInverse,
+  },
+  hintNotice: {
+    fontSize: 12,
+    color: CozyTheme.textTertiary,
+    marginTop: 4,
   },
   colorPaletteRow: {
     flexDirection: 'row',
@@ -427,9 +427,9 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   colorCircle: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
   },
   colorCircleSelected: {
     borderWidth: 3,
@@ -438,7 +438,7 @@ const styles = StyleSheet.create({
   },
   submitButton: {
     flexDirection: 'row',
-    height: 50,
+    height: 52,
     borderRadius: 16,
     backgroundColor: CozyTheme.textPrimary,
     justifyContent: 'center',

@@ -3,90 +3,30 @@ import { Platform } from 'react-native';
 import { Account, Card, Category, Transaction, DatabaseBackup } from '../types';
 import { convertCurrency } from '../utils/currency';
 
-// ----------------------------------------------------
-// DEFAULT SEED DATA
-// ----------------------------------------------------
 const now = new Date().toISOString();
-const yesterday = new Date(Date.now() - 86400000).toISOString();
-const twoDaysAgo = new Date(Date.now() - 172800000).toISOString();
 
-const DEFAULT_ACCOUNTS: Account[] = [
-  {
-    id: 'acc_main_bank',
-    name: 'Main Checking',
-    type: 'bank',
-    balance_cents: 425000,
-    currency: 'USD',
-    color: '#2C343E',
-    icon: 'landmark',
-    created_at: now,
-  },
-  {
-    id: 'acc_savings',
-    name: 'High Yield Savings',
-    type: 'bank',
-    balance_cents: 1250000,
-    currency: 'USD',
-    color: '#44624D',
-    icon: 'piggy-bank',
-    created_at: now,
-  },
-  {
-    id: 'acc_cash_wallet',
-    name: 'Pocket Cash',
-    type: 'wallet',
-    balance_cents: 8500,
-    currency: 'USD',
-    color: '#7D7060',
-    icon: 'wallet',
-    created_at: now,
-  },
-];
-
-const DEFAULT_CARDS: Card[] = [
-  {
-    id: 'card_sapphire',
-    name: 'Sapphire Reserve',
-    type: 'credit',
-    bank_account_id: 'acc_main_bank',
-    currency: 'USD',
-    color: '#3E4968',
-    last4: '4821',
-    credit_limit_cents: 600000,
-    statement_day: 20,
-    due_day: 10,
-    created_at: now,
-  },
-  {
-    id: 'card_debit',
-    name: 'Checking Debit Card',
-    type: 'debit',
-    bank_account_id: 'acc_main_bank',
-    currency: 'USD',
-    color: '#B85D43',
-    last4: '9012',
-    created_at: now,
-  },
-];
-
+// Category presets (kept ready so user can categorize immediately)
 const DEFAULT_CATEGORIES: Category[] = [
-  { id: 'cat_food', name: 'Dining & Food', icon: 'utensils', color: '#C8543B', type: 'expense', monthly_budget_cents: 45000, created_at: now },
-  { id: 'cat_groceries', name: 'Groceries', icon: 'shopping-cart', color: '#3B7A57', type: 'expense', monthly_budget_cents: 50000, created_at: now },
-  { id: 'cat_coffee', name: 'Coffee & Treats', icon: 'coffee', color: '#B85D43', type: 'expense', monthly_budget_cents: 8000, created_at: now },
-  { id: 'cat_housing', name: 'Rent & Utilities', icon: 'home', color: '#4B6B94', type: 'expense', monthly_budget_cents: 150000, created_at: now },
-  { id: 'cat_transport', name: 'Transport & Fuel', icon: 'car', color: '#D68832', type: 'expense', monthly_budget_cents: 18000, created_at: now },
-  { id: 'cat_shopping', name: 'Shopping & Gear', icon: 'shopping-bag', color: '#634832', type: 'expense', monthly_budget_cents: 25000, created_at: now },
-  { id: 'cat_subs', name: 'Subscriptions', icon: 'tv', color: '#7D7060', type: 'expense', monthly_budget_cents: 6000, created_at: now },
-  { id: 'cat_salary', name: 'Salary & Work', icon: 'briefcase', color: '#3B7A57', type: 'income', monthly_budget_cents: null, created_at: now },
-  { id: 'cat_freelance', name: 'Side Hustles', icon: 'laptop', color: '#4B6B94', type: 'income', monthly_budget_cents: null, created_at: now },
+  { id: 'cat_food', name: 'Dining & Food', icon: 'utensils', color: '#F87171', type: 'expense', monthly_budget_cents: null, created_at: now },
+  { id: 'cat_groceries', name: 'Groceries', icon: 'shopping-cart', color: '#34D399', type: 'expense', monthly_budget_cents: null, created_at: now },
+  { id: 'cat_coffee', name: 'Café & Snacks', icon: 'coffee', color: '#FBBF24', type: 'expense', monthly_budget_cents: null, created_at: now },
+  { id: 'cat_housing', name: 'Rent & Bills', icon: 'home', color: '#60A5FA', type: 'expense', monthly_budget_cents: null, created_at: now },
+  { id: 'cat_transport', name: 'Fuel & Cab', icon: 'car', color: '#A78BFA', type: 'expense', monthly_budget_cents: null, created_at: now },
+  { id: 'cat_shopping', name: 'Shopping', icon: 'shopping-bag', color: '#FB923C', type: 'expense', monthly_budget_cents: null, created_at: now },
+  { id: 'cat_subs', name: 'Subscriptions', icon: 'tv', color: '#756D63', type: 'expense', monthly_budget_cents: null, created_at: now },
+  { id: 'cat_salary', name: 'Salary / Income', icon: 'briefcase', color: '#34D399', type: 'income', monthly_budget_cents: null, created_at: now },
+  { id: 'cat_freelance', name: 'Side Hustle', icon: 'laptop', color: '#60A5FA', type: 'income', monthly_budget_cents: null, created_at: now },
 ];
 
+// ZERO MOCK DATA - Clean slate for the user
+const DEFAULT_ACCOUNTS: Account[] = [];
+const DEFAULT_CARDS: Card[] = [];
 const DEFAULT_TRANSACTIONS: Transaction[] = [];
 
 // ----------------------------------------------------
 // WEB STORAGE FALLBACK (LOCAL STORAGE)
 // ----------------------------------------------------
-const WEB_KEY = 'castra_local_store_v1';
+const WEB_KEY = 'castra_local_store_v2';
 
 interface WebStore {
   base_currency: string;
@@ -99,7 +39,7 @@ interface WebStore {
 function getWebStore(): WebStore {
   if (typeof window === 'undefined' || !window.localStorage) {
     return {
-      base_currency: 'USD',
+      base_currency: 'INR',
       accounts: DEFAULT_ACCOUNTS,
       cards: DEFAULT_CARDS,
       categories: DEFAULT_CATEGORIES,
@@ -110,7 +50,7 @@ function getWebStore(): WebStore {
   const raw = window.localStorage.getItem(WEB_KEY);
   if (!raw) {
     const initial: WebStore = {
-      base_currency: 'USD',
+      base_currency: 'INR',
       accounts: DEFAULT_ACCOUNTS,
       cards: DEFAULT_CARDS,
       categories: DEFAULT_CATEGORIES,
@@ -122,11 +62,13 @@ function getWebStore(): WebStore {
 
   try {
     const parsed: WebStore = JSON.parse(raw);
+    parsed.accounts = (parsed.accounts || []).filter(a => !['acc_main_bank', 'acc_savings', 'acc_cash_wallet'].includes(a.id));
+    parsed.cards = (parsed.cards || []).filter(c => !['card_sapphire', 'card_debit'].includes(c.id));
     parsed.transactions = (parsed.transactions || []).filter(t => !['tx_1', 'tx_2', 'tx_3'].includes(t.id));
     return parsed;
   } catch {
     return {
-      base_currency: 'USD',
+      base_currency: 'INR',
       accounts: DEFAULT_ACCOUNTS,
       cards: DEFAULT_CARDS,
       categories: DEFAULT_CATEGORIES,
@@ -172,8 +114,8 @@ function initNativeDatabase(db: SQLite.SQLiteDatabase) {
       name TEXT NOT NULL,
       type TEXT NOT NULL,
       balance_cents INTEGER NOT NULL DEFAULT 0,
-      currency TEXT NOT NULL DEFAULT 'USD',
-      color TEXT NOT NULL DEFAULT '#2C343E',
+      currency TEXT NOT NULL DEFAULT 'INR',
+      color TEXT NOT NULL DEFAULT '#1C222B',
       icon TEXT NOT NULL DEFAULT 'landmark',
       created_at TEXT NOT NULL
     );
@@ -183,8 +125,8 @@ function initNativeDatabase(db: SQLite.SQLiteDatabase) {
       name TEXT NOT NULL,
       type TEXT NOT NULL,
       bank_account_id TEXT,
-      currency TEXT NOT NULL DEFAULT 'USD',
-      color TEXT NOT NULL DEFAULT '#3E4968',
+      currency TEXT NOT NULL DEFAULT 'INR',
+      color TEXT NOT NULL DEFAULT '#1D1E22',
       last4 TEXT,
       credit_limit_cents INTEGER,
       statement_day INTEGER,
@@ -197,7 +139,7 @@ function initNativeDatabase(db: SQLite.SQLiteDatabase) {
       id TEXT PRIMARY KEY,
       name TEXT NOT NULL,
       icon TEXT NOT NULL DEFAULT 'tag',
-      color TEXT NOT NULL DEFAULT '#787067',
+      color TEXT NOT NULL DEFAULT '#756D63',
       type TEXT NOT NULL DEFAULT 'expense',
       monthly_budget_cents INTEGER,
       created_at TEXT NOT NULL
@@ -209,7 +151,7 @@ function initNativeDatabase(db: SQLite.SQLiteDatabase) {
       card_id TEXT,
       category_id TEXT,
       amount_cents INTEGER NOT NULL,
-      currency TEXT NOT NULL DEFAULT 'USD',
+      currency TEXT NOT NULL DEFAULT 'INR',
       exchange_rate REAL NOT NULL DEFAULT 1.0,
       base_amount_cents INTEGER NOT NULL,
       type TEXT NOT NULL,
@@ -223,51 +165,30 @@ function initNativeDatabase(db: SQLite.SQLiteDatabase) {
     );
   `);
 
-  const accountCount = db.getFirstSync<{ count: number }>('SELECT COUNT(*) as count FROM accounts;');
-  if (!accountCount || accountCount.count === 0) {
-    seedNativeData(db);
-  }
-  // Clear any mock seed transactions so user starts with a clean slate
-  db.runSync("DELETE FROM transactions WHERE id IN ('tx_1', 'tx_2', 'tx_3');");
-}
-
-function seedNativeData(db: SQLite.SQLiteDatabase) {
-  db.runSync(
-    'INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?);',
-    ['base_currency', 'USD']
-  );
-
-  for (const acc of DEFAULT_ACCOUNTS) {
-    db.runSync(
-      `INSERT INTO accounts (id, name, type, balance_cents, currency, color, icon, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?);`,
-      [acc.id, acc.name, acc.type, acc.balance_cents, acc.currency, acc.color, acc.icon, acc.created_at]
-    );
+  // Ensure default base currency is INR
+  const baseCurr = db.getFirstSync<{ value: string }>('SELECT value FROM settings WHERE key = ?;', ['base_currency']);
+  if (!baseCurr) {
+    db.runSync('INSERT INTO settings (key, value) VALUES (?, ?);', ['base_currency', 'INR']);
+  } else if (baseCurr.value === 'USD') {
+    db.runSync('UPDATE settings SET value = ? WHERE key = ?;', ['INR', 'base_currency']);
   }
 
-  for (const c of DEFAULT_CARDS) {
-    db.runSync(
-      `INSERT INTO cards (id, name, type, bank_account_id, currency, color, last4, credit_limit_cents, statement_day, due_day, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
-      [c.id, c.name, c.type, c.bank_account_id || null, c.currency, c.color, c.last4 || null, c.credit_limit_cents || null, c.statement_day || null, c.due_day || null, c.created_at]
-    );
+  // Ensure categories are seeded if empty
+  const catCount = db.getFirstSync<{ count: number }>('SELECT COUNT(*) as count FROM categories;');
+  if (!catCount || catCount.count === 0) {
+    for (const cat of DEFAULT_CATEGORIES) {
+      db.runSync(
+        `INSERT INTO categories (id, name, icon, color, type, monthly_budget_cents, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?);`,
+        [cat.id, cat.name, cat.icon, cat.color, cat.type, null, now]
+      );
+    }
   }
 
-  for (const cat of DEFAULT_CATEGORIES) {
-    db.runSync(
-      `INSERT INTO categories (id, name, icon, color, type, monthly_budget_cents, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?);`,
-      [cat.id, cat.name, cat.icon, cat.color, cat.type, cat.monthly_budget_cents || null, cat.created_at || now]
-    );
-  }
-
-  for (const tx of DEFAULT_TRANSACTIONS) {
-    db.runSync(
-      `INSERT INTO transactions (id, account_id, card_id, category_id, amount_cents, currency, exchange_rate, base_amount_cents, type, date, note, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
-      [tx.id, tx.account_id || null, tx.card_id || null, tx.category_id || null, tx.amount_cents, tx.currency, tx.exchange_rate, tx.base_amount_cents, tx.type, tx.date, tx.note || null, tx.created_at]
-    );
-  }
+  // WIPE ANY OLD MOCK DATA so user gets a completely fresh app
+  db.runSync("DELETE FROM transactions WHERE id IN ('tx_1', 'tx_2', 'tx_3') OR account_id IN ('acc_main_bank', 'acc_savings', 'acc_cash_wallet') OR card_id IN ('card_sapphire', 'card_debit');");
+  db.runSync("DELETE FROM cards WHERE id IN ('card_sapphire', 'card_debit');");
+  db.runSync("DELETE FROM accounts WHERE id IN ('acc_main_bank', 'acc_savings', 'acc_cash_wallet');");
 }
 
 // ----------------------------------------------------
@@ -275,11 +196,11 @@ function seedNativeData(db: SQLite.SQLiteDatabase) {
 // ----------------------------------------------------
 export function getBaseCurrency(): string {
   if (Platform.OS === 'web') {
-    return getWebStore().base_currency;
+    return getWebStore().base_currency || 'INR';
   }
   const db = getDatabase();
   const res = db?.getFirstSync<{ value: string }>('SELECT value FROM settings WHERE key = ?;', ['base_currency']);
-  return res?.value || 'USD';
+  return res?.value || 'INR';
 }
 
 export function setBaseCurrency(currency: string): void {
@@ -294,7 +215,7 @@ export function setBaseCurrency(currency: string): void {
 }
 
 // ----------------------------------------------------
-// ACCOUNTS & CARDS
+// ACCOUNTS & CARDS (CRUD & BALANCE ADJUSTERS)
 // ----------------------------------------------------
 export function getAllAccounts(): Account[] {
   if (Platform.OS === 'web') {
@@ -369,6 +290,54 @@ export function createAccount(account: Omit<Account, 'created_at'>): void {
   );
 }
 
+export function updateAccountBalance(id: string, newBalanceCents: number): void {
+  if (Platform.OS === 'web') {
+    const store = getWebStore();
+    const acc = store.accounts.find(a => a.id === id);
+    if (acc) {
+      acc.balance_cents = newBalanceCents;
+      saveWebStore(store);
+    }
+    return;
+  }
+  const db = getDatabase();
+  db?.runSync('UPDATE accounts SET balance_cents = ? WHERE id = ?;', [newBalanceCents, id]);
+}
+
+export function updateAccount(id: string, updates: Partial<Account>): void {
+  if (Platform.OS === 'web') {
+    const store = getWebStore();
+    const idx = store.accounts.findIndex(a => a.id === id);
+    if (idx !== -1) {
+      store.accounts[idx] = { ...store.accounts[idx], ...updates };
+      saveWebStore(store);
+    }
+    return;
+  }
+  const db = getDatabase();
+  if (!db) return;
+  const current = db.getFirstSync<Account>('SELECT * FROM accounts WHERE id = ?;', [id]);
+  if (!current) return;
+
+  const merged = { ...current, ...updates };
+  db.runSync(
+    'UPDATE accounts SET name = ?, type = ?, balance_cents = ?, currency = ?, color = ? WHERE id = ?;',
+    [merged.name, merged.type, merged.balance_cents, merged.currency, merged.color, id]
+  );
+}
+
+export function deleteAccount(id: string): void {
+  if (Platform.OS === 'web') {
+    const store = getWebStore();
+    store.accounts = store.accounts.filter(a => a.id !== id);
+    store.transactions = store.transactions.filter(t => t.account_id !== id);
+    saveWebStore(store);
+    return;
+  }
+  const db = getDatabase();
+  db?.runSync('DELETE FROM accounts WHERE id = ?;', [id]);
+}
+
 export function createCard(card: Omit<Card, 'created_at'>): void {
   const fullCard: Card = { ...card, created_at: new Date().toISOString() };
   if (Platform.OS === 'web') {
@@ -397,6 +366,51 @@ export function createCard(card: Omit<Card, 'created_at'>): void {
   );
 }
 
+export function updateCard(id: string, updates: Partial<Card>): void {
+  if (Platform.OS === 'web') {
+    const store = getWebStore();
+    const idx = store.cards.findIndex(c => c.id === id);
+    if (idx !== -1) {
+      store.cards[idx] = { ...store.cards[idx], ...updates };
+      saveWebStore(store);
+    }
+    return;
+  }
+  const db = getDatabase();
+  if (!db) return;
+  const current = db.getFirstSync<Card>('SELECT * FROM cards WHERE id = ?;', [id]);
+  if (!current) return;
+
+  const merged = { ...current, ...updates };
+  db.runSync(
+    `UPDATE cards SET name = ?, type = ?, bank_account_id = ?, currency = ?, color = ?, last4 = ?, credit_limit_cents = ?, statement_day = ?, due_day = ? WHERE id = ?;`,
+    [
+      merged.name,
+      merged.type,
+      merged.bank_account_id || null,
+      merged.currency,
+      merged.color,
+      merged.last4 || null,
+      merged.credit_limit_cents || null,
+      merged.statement_day || null,
+      merged.due_day || null,
+      id,
+    ]
+  );
+}
+
+export function deleteCard(id: string): void {
+  if (Platform.OS === 'web') {
+    const store = getWebStore();
+    store.cards = store.cards.filter(c => c.id !== id);
+    store.transactions = store.transactions.filter(t => t.card_id !== id);
+    saveWebStore(store);
+    return;
+  }
+  const db = getDatabase();
+  db?.runSync('DELETE FROM cards WHERE id = ?;', [id]);
+}
+
 export function getAllCategories(): Category[] {
   if (Platform.OS === 'web') {
     return getWebStore().categories;
@@ -408,7 +422,7 @@ export function getAllCategories(): Category[] {
 // ----------------------------------------------------
 // TRANSACTIONS
 // ----------------------------------------------------
-export function getAllTransactions(limit: number = 100): Transaction[] {
+export function getAllTransactions(limit: number = 200): Transaction[] {
   if (Platform.OS === 'web') {
     return getWebStore().transactions.slice(0, limit);
   }
@@ -416,6 +430,21 @@ export function getAllTransactions(limit: number = 100): Transaction[] {
   return db?.getAllSync<Transaction>(
     'SELECT * FROM transactions ORDER BY date DESC, created_at DESC LIMIT ?;',
     [limit]
+  ) || [];
+}
+
+export function getTransactionsByEntity(entityId: string): Transaction[] {
+  if (Platform.OS === 'web') {
+    return getWebStore().transactions.filter(
+      t => t.account_id === entityId || t.card_id === entityId || t.to_account_id === entityId
+    );
+  }
+  const db = getDatabase();
+  return db?.getAllSync<Transaction>(
+    `SELECT * FROM transactions 
+     WHERE account_id = ? OR card_id = ? OR to_account_id = ? 
+     ORDER BY date DESC, created_at DESC;`,
+    [entityId, entityId, entityId]
   ) || [];
 }
 
@@ -435,7 +464,6 @@ export function addTransaction(tx: Omit<Transaction, 'created_at' | 'base_amount
     const store = getWebStore();
     store.transactions.unshift(fullTx);
 
-    // Update balances
     if (fullTx.type === 'expense') {
       if (fullTx.card_id) {
         const card = store.cards.find(c => c.id === fullTx.card_id);
@@ -593,7 +621,7 @@ export function exportDatabaseJSON(): string {
   const transactions = getAllTransactions(10000);
 
   const backup: DatabaseBackup = {
-    version: 1,
+    version: 2,
     exported_at: new Date().toISOString(),
     base_currency: baseCurrency,
     accounts,
@@ -650,7 +678,7 @@ export function importDatabaseJSON(jsonStr: string): boolean {
 
     if (Platform.OS === 'web') {
       const store: WebStore = {
-        base_currency: backup.base_currency || 'USD',
+        base_currency: backup.base_currency || 'INR',
         accounts: backup.accounts,
         cards: backup.cards,
         categories: backup.categories,
@@ -669,9 +697,7 @@ export function importDatabaseJSON(jsonStr: string): boolean {
       db.runSync('DELETE FROM accounts;');
       db.runSync('DELETE FROM categories;');
 
-      if (backup.base_currency) {
-        setBaseCurrency(backup.base_currency);
-      }
+      setBaseCurrency(backup.base_currency || 'INR');
 
       for (const a of backup.accounts) {
         db.runSync(

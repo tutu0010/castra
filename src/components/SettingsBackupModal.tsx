@@ -6,8 +6,6 @@ import {
   Modal,
   TouchableOpacity,
   ScrollView,
-  Alert,
-  ActivityIndicator,
 } from 'react-native';
 import {
   X,
@@ -47,7 +45,7 @@ export const SettingsBackupModal: React.FC<SettingsBackupModalProps> = ({
     setStatusMessage('Exporting CSV...');
     const ok = await exportCSVFile();
     setLoading(false);
-    setStatusMessage(ok ? 'CSV Exported!' : 'Export cancelled or failed');
+    setStatusMessage(ok ? 'CSV Exported successfully!' : 'Export cancelled or failed');
     if (ok) triggerSuccessHaptic();
   };
 
@@ -57,7 +55,7 @@ export const SettingsBackupModal: React.FC<SettingsBackupModalProps> = ({
     setStatusMessage('Exporting Backup...');
     const ok = await exportJSONBackup();
     setLoading(false);
-    setStatusMessage(ok ? 'Backup Exported!' : 'Export cancelled or failed');
+    setStatusMessage(ok ? 'Backup Exported successfully!' : 'Export cancelled or failed');
     if (ok) triggerSuccessHaptic();
   };
 
@@ -75,210 +73,176 @@ export const SettingsBackupModal: React.FC<SettingsBackupModalProps> = ({
   };
 
   return (
-    <Modal visible={visible} animationType="slide" transparent>
-      <View style={styles.modalOverlay}>
-        <View style={styles.modalContainer}>
-          {/* Header */}
-          <View style={styles.header}>
-            <Text style={styles.headerTitle}>Preferences & Data</Text>
+    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet">
+      <View style={styles.container}>
+        {/* Header */}
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>Settings & Data</Text>
+          <TouchableOpacity
+            onPress={() => {
+              triggerLightHaptic();
+              onClose();
+            }}
+            style={styles.closeBtn}
+          >
+            <X size={18} color={CozyTheme.textPrimary} />
+          </TouchableOpacity>
+        </View>
+
+        <ScrollView showsVerticalScrollIndicator={false} style={styles.scroll}>
+          {statusMessage && (
+            <View style={styles.statusBanner}>
+              <CheckCircle2 size={16} color={CozyTheme.income} />
+              <Text style={styles.statusBannerText}>{statusMessage}</Text>
+            </View>
+          )}
+
+          {/* Base Currency Selection */}
+          <View style={styles.cardSection}>
+            <View style={styles.cardHeaderRow}>
+              <Coins size={16} color={CozyTheme.textPrimary} />
+              <Text style={styles.cardTitle}>Default Base Currency</Text>
+            </View>
+            <Text style={styles.cardSub}>Current: {baseCurrency}</Text>
+
+            <View style={styles.currencyGrid}>
+              {Object.values(SUPPORTED_CURRENCIES).map(curr => {
+                const isSelected = baseCurrency === curr.code;
+                return (
+                  <TouchableOpacity
+                    key={curr.code}
+                    style={[
+                      styles.currencyPill,
+                      isSelected && styles.currencyPillSelected,
+                    ]}
+                    onPress={() => {
+                      triggerLightHaptic();
+                      onBaseCurrencyChange(curr.code);
+                    }}
+                  >
+                    <Text
+                      style={[
+                        styles.currCode,
+                        isSelected && styles.currCodeSelected,
+                      ]}
+                    >
+                      {curr.symbol} {curr.code}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
+
+          {/* Export & Sharing */}
+          <View style={styles.cardSection}>
+            <View style={styles.cardHeaderRow}>
+              <DownloadCloud size={16} color={CozyTheme.textPrimary} />
+              <Text style={styles.cardTitle}>Export Data</Text>
+            </View>
+
             <TouchableOpacity
-              onPress={() => {
-                triggerLightHaptic();
-                onClose();
-              }}
-              style={styles.closeBtn}
+              style={styles.rowButton}
+              onPress={handleExportCSV}
+              disabled={loading}
+              activeOpacity={0.7}
             >
-              <X size={20} color={CozyTheme.textSecondary} />
+              <FileSpreadsheet size={18} color={CozyTheme.income} />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.rowButtonTitle}>Export CSV</Text>
+                <Text style={styles.rowButtonSub}>Spreadsheet for Excel & Sheets</Text>
+              </View>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.rowButton, { marginTop: 8 }]}
+              onPress={handleExportJSON}
+              disabled={loading}
+              activeOpacity={0.7}
+            >
+              <DownloadCloud size={18} color={CozyTheme.transfer} />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.rowButtonTitle}>Full JSON Backup</Text>
+                <Text style={styles.rowButtonSub}>Complete database snapshot</Text>
+              </View>
             </TouchableOpacity>
           </View>
 
-          <ScrollView showsVerticalScrollIndicator={false}>
-            {/* Status Feedback Banner */}
-            {statusMessage && (
-              <View style={styles.statusBanner}>
-                <CheckCircle2 size={16} color={CozyTheme.income} />
-                <Text style={styles.statusBannerText}>{statusMessage}</Text>
-              </View>
-            )}
-
-            {/* Base Currency Selection */}
-            <View style={styles.sectionCard}>
-              <View style={styles.sectionTitleRow}>
-                <Coins size={18} color={CozyTheme.textPrimary} />
-                <Text style={styles.sectionTitle}>Home Base Currency</Text>
-              </View>
-              <Text style={styles.sectionSubtitle}>
-                All account totals and net worth are converted to this currency.
-              </Text>
-
-              <View style={styles.currencyGrid}>
-                {Object.values(SUPPORTED_CURRENCIES).map(curr => {
-                  const isSelected = baseCurrency === curr.code;
-                  return (
-                    <TouchableOpacity
-                      key={curr.code}
-                      style={[
-                        styles.currencyItem,
-                        isSelected && styles.currencyItemSelected,
-                      ]}
-                      onPress={() => {
-                        triggerLightHaptic();
-                        onBaseCurrencyChange(curr.code);
-                      }}
-                    >
-                      <Text
-                        style={[
-                          styles.currencyItemCode,
-                          isSelected && styles.currencyItemCodeSelected,
-                        ]}
-                      >
-                        {curr.symbol} {curr.code}
-                      </Text>
-                      <Text
-                        style={[
-                          styles.currencyItemName,
-                          isSelected && styles.currencyItemNameSelected,
-                        ]}
-                        numberOfLines={1}
-                      >
-                        {curr.name}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
+          {/* Import */}
+          <View style={styles.cardSection}>
+            <View style={styles.cardHeaderRow}>
+              <UploadCloud size={16} color={CozyTheme.textPrimary} />
+              <Text style={styles.cardTitle}>Restore</Text>
             </View>
 
-            {/* Data Export & Backup Section */}
-            <View style={styles.sectionCard}>
-              <View style={styles.sectionTitleRow}>
-                <DownloadCloud size={18} color={CozyTheme.textPrimary} />
-                <Text style={styles.sectionTitle}>Export & Share</Text>
-              </View>
-              <Text style={styles.sectionSubtitle}>
-                Own your data. Export spreadsheet files or complete database snapshots anytime.
-              </Text>
-
-              <View style={styles.actionRow}>
-                <TouchableOpacity
-                  style={styles.actionButton}
-                  onPress={handleExportCSV}
-                  disabled={loading}
-                  activeOpacity={0.7}
-                >
-                  <FileSpreadsheet size={18} color={CozyTheme.income} />
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.actionButtonTitle}>Export CSV Spreadsheet</Text>
-                    <Text style={styles.actionButtonSub}>For Excel, Google Sheets, Numbers</Text>
-                  </View>
-                </TouchableOpacity>
-              </View>
-
-              <View style={styles.actionRow}>
-                <TouchableOpacity
-                  style={styles.actionButton}
-                  onPress={handleExportJSON}
-                  disabled={loading}
-                  activeOpacity={0.7}
-                >
-                  <DownloadCloud size={18} color={CozyTheme.transfer} />
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.actionButtonTitle}>Export Full JSON Backup</Text>
-                    <Text style={styles.actionButtonSub}>Complete database snapshot</Text>
-                  </View>
-                </TouchableOpacity>
-              </View>
-            </View>
-
-            {/* Import & Restore Section */}
-            <View style={styles.sectionCard}>
-              <View style={styles.sectionTitleRow}>
-                <UploadCloud size={18} color={CozyTheme.textPrimary} />
-                <Text style={styles.sectionTitle}>Import & Restore</Text>
-              </View>
-              <Text style={styles.sectionSubtitle}>
-                Migrating phones or restoring from a previous Castra backup?
-              </Text>
-
-              <TouchableOpacity
-                style={[styles.actionButton, styles.restoreButton]}
-                onPress={handleImportJSON}
-                disabled={loading}
-                activeOpacity={0.7}
-              >
-                <UploadCloud size={18} color={CozyTheme.expense} />
-                <View style={{ flex: 1 }}>
-                  <Text style={[styles.actionButtonTitle, { color: CozyTheme.expense }]}>
-                    Restore From JSON Backup
-                  </Text>
-                  <Text style={styles.actionButtonSub}>Replaces current records with backup file</Text>
-                </View>
-              </TouchableOpacity>
-            </View>
-
-            {/* Privacy & Local-First Guarantee */}
-            <View style={styles.privacyCard}>
-              <Shield size={20} color={CozyTheme.income} />
-              <View style={{ flex: 1, marginLeft: 10 }}>
-                <Text style={styles.privacyTitle}>100% Private & Local-First</Text>
-                <Text style={styles.privacyText}>
-                  Castra has zero remote servers, zero trackers, and zero subscriptions.
-                  Your financial data never leaves your device.
+            <TouchableOpacity
+              style={styles.rowButton}
+              onPress={handleImportJSON}
+              disabled={loading}
+              activeOpacity={0.7}
+            >
+              <UploadCloud size={18} color={CozyTheme.expense} />
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.rowButtonTitle, { color: CozyTheme.expense }]}>
+                  Restore from JSON Backup
                 </Text>
+                <Text style={styles.rowButtonSub}>Overwrites current data with backup file</Text>
               </View>
-            </View>
-          </ScrollView>
-        </View>
+            </TouchableOpacity>
+          </View>
+
+          {/* Privacy Note */}
+          <View style={styles.privacyCard}>
+            <Shield size={18} color={CozyTheme.income} />
+            <Text style={styles.privacyText}>
+              Castra is 100% offline & local-first. Your financial data is stored securely on this phone.
+            </Text>
+          </View>
+        </ScrollView>
       </View>
     </Modal>
   );
 };
 
 const styles = StyleSheet.create({
-  modalOverlay: {
+  container: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.72)',
-    justifyContent: 'flex-end',
-  },
-  modalContainer: {
-    backgroundColor: CozyTheme.surface,
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
-    borderTopWidth: 1,
-    borderLeftWidth: 1,
-    borderRightWidth: 1,
-    borderColor: CozyTheme.border,
+    backgroundColor: CozyTheme.background,
+    paddingTop: 16,
     paddingHorizontal: 20,
-    paddingTop: 18,
-    paddingBottom: 36,
-    maxHeight: '88%',
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 16,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: CozyTheme.border,
   },
   headerTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: '800',
     color: CozyTheme.textPrimary,
-    letterSpacing: -0.3,
+    letterSpacing: -0.4,
   },
   closeBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: CozyTheme.surfaceMuted,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: CozyTheme.surfaceElevated,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  scroll: {
+    flex: 1,
   },
   statusBanner: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: CozyTheme.incomeSoft,
     padding: 12,
-    borderRadius: 14,
+    borderRadius: 12,
     marginBottom: 14,
     gap: 8,
   },
@@ -287,111 +251,89 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: CozyTheme.income,
   },
-  sectionCard: {
-    backgroundColor: CozyTheme.surfaceElevated,
-    borderRadius: 20,
+  cardSection: {
+    backgroundColor: CozyTheme.surface,
+    borderRadius: 18,
     padding: 16,
     marginBottom: 14,
     borderWidth: 1,
-    borderColor: CozyTheme.borderLight,
+    borderColor: CozyTheme.border,
   },
-  sectionTitleRow: {
+  cardHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
     marginBottom: 4,
   },
-  sectionTitle: {
+  cardTitle: {
     fontSize: 15,
     fontWeight: '700',
     color: CozyTheme.textPrimary,
   },
-  sectionSubtitle: {
+  cardSub: {
     fontSize: 12,
     color: CozyTheme.textSecondary,
     marginBottom: 12,
-    lineHeight: 16,
   },
   currencyGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 8,
   },
-  currencyItem: {
-    width: '31%',
-    backgroundColor: CozyTheme.surface,
+  currencyPill: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
     borderRadius: 12,
-    padding: 10,
+    backgroundColor: CozyTheme.surfaceElevated,
     borderWidth: 1,
     borderColor: CozyTheme.border,
-    alignItems: 'center',
   },
-  currencyItemSelected: {
+  currencyPillSelected: {
     backgroundColor: CozyTheme.textPrimary,
     borderColor: CozyTheme.textPrimary,
   },
-  currencyItemCode: {
+  currCode: {
     fontSize: 13,
     fontWeight: '700',
     color: CozyTheme.textPrimary,
   },
-  currencyItemCodeSelected: {
+  currCodeSelected: {
     color: CozyTheme.textInverse,
   },
-  currencyItemName: {
-    fontSize: 9,
-    color: CozyTheme.textSecondary,
-    marginTop: 2,
-    textAlign: 'center',
-  },
-  currencyItemNameSelected: {
-    color: 'rgba(255,255,255,0.8)',
-  },
-  actionRow: {
-    marginBottom: 10,
-  },
-  actionButton: {
+  rowButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: CozyTheme.surface,
+    backgroundColor: CozyTheme.surfaceElevated,
     padding: 14,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: CozyTheme.border,
+    borderRadius: 14,
     gap: 12,
   },
-  restoreButton: {
-    borderColor: CozyTheme.expenseSoft,
-    backgroundColor: CozyTheme.expenseSoft,
-  },
-  actionButtonTitle: {
-    fontSize: 13,
+  rowButtonTitle: {
+    fontSize: 14,
     fontWeight: '700',
     color: CozyTheme.textPrimary,
   },
-  actionButtonSub: {
+  rowButtonSub: {
     fontSize: 11,
     color: CozyTheme.textSecondary,
     marginTop: 1,
   },
   privacyCard: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    backgroundColor: CozyTheme.incomeSoft,
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: CozyTheme.surface,
     padding: 14,
-    borderRadius: 18,
-    marginTop: 4,
-    marginBottom: 14,
-  },
-  privacyTitle: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: CozyTheme.income,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: CozyTheme.border,
+    marginBottom: 30,
+    marginTop: 6,
   },
   privacyText: {
-    fontSize: 11,
+    flex: 1,
+    fontSize: 12,
     color: CozyTheme.textSecondary,
-    marginTop: 2,
-    lineHeight: 15,
+    lineHeight: 16,
   },
 });

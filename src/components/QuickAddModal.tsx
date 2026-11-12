@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,9 +7,8 @@ import {
   TouchableOpacity,
   ScrollView,
   TextInput,
-  Dimensions,
 } from 'react-native';
-import { X, Delete, Check, ArrowRightLeft } from 'lucide-react-native';
+import { X, Delete, Check } from 'lucide-react-native';
 import { Account, Card, Category, TransactionType } from '../types';
 import { CozyTheme } from '../theme/colors';
 import { SUPPORTED_CURRENCIES, getCurrencySymbol } from '../utils/currency';
@@ -33,6 +32,7 @@ interface QuickAddModalProps {
     note?: string;
     date: string;
   }) => void;
+  onOpenAddEntity: () => void;
 }
 
 export const QuickAddModal: React.FC<QuickAddModalProps> = ({
@@ -43,23 +43,28 @@ export const QuickAddModal: React.FC<QuickAddModalProps> = ({
   categories,
   baseCurrency,
   onSave,
+  onOpenAddEntity,
 }) => {
   const [mode, setMode] = useState<TransactionType>('expense');
   const [amountStr, setAmountStr] = useState<string>('0');
-  const [selectedCurrency, setSelectedCurrency] = useState<string>(baseCurrency);
+  const [selectedCurrency, setSelectedCurrency] = useState<string>(baseCurrency || 'INR');
   const [showCurrencyPicker, setShowCurrencyPicker] = useState<boolean>(false);
-  const [selectedSourceId, setSelectedSourceId] = useState<string>(
-    cards[0]?.id || accounts[0]?.id || ''
-  );
-  const [selectedToAccountId, setSelectedToAccountId] = useState<string>(
-    accounts[1]?.id || accounts[0]?.id || ''
-  );
-  const [selectedCategoryId, setSelectedCategoryId] = useState<string>(
-    categories[0]?.id || ''
-  );
+  const [selectedSourceId, setSelectedSourceId] = useState<string>('');
+  const [selectedToAccountId, setSelectedToAccountId] = useState<string>('');
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string>('');
   const [note, setNote] = useState<string>('');
 
-  // Keypad actions
+  useEffect(() => {
+    if (visible) {
+      setSelectedCurrency(baseCurrency || 'INR');
+      setSelectedSourceId(cards[0]?.id || accounts[0]?.id || '');
+      setSelectedToAccountId(accounts[1]?.id || accounts[0]?.id || '');
+      setSelectedCategoryId(categories[0]?.id || '');
+      setAmountStr('0');
+      setNote('');
+    }
+  }, [visible, baseCurrency, cards, accounts, categories]);
+
   const handleKeypadPress = (val: string) => {
     triggerLightHaptic();
     if (val === 'back') {
@@ -78,16 +83,12 @@ export const QuickAddModal: React.FC<QuickAddModalProps> = ({
       return;
     }
 
-    // Numbers
     if (amountStr === '0') {
       setAmountStr(val);
     } else {
-      // Limit to 2 decimal places if dot present
       const parts = amountStr.split('.');
-      if (parts.length > 1 && parts[1].length >= 2) {
-        return;
-      }
-      if (amountStr.length < 8) {
+      if (parts.length > 1 && parts[1].length >= 2) return;
+      if (amountStr.length < 9) {
         setAmountStr(amountStr + val);
       }
     }
@@ -98,8 +99,8 @@ export const QuickAddModal: React.FC<QuickAddModalProps> = ({
     if (!numericAmount || numericAmount <= 0) return;
 
     triggerSuccessHaptic();
-    const currencyInfo = SUPPORTED_CURRENCIES[selectedCurrency];
-    const decimals = currencyInfo?.decimals ?? 2;
+    const currencyInfo = SUPPORTED_CURRENCIES[selectedCurrency] || { decimals: 2 };
+    const decimals = currencyInfo.decimals ?? 2;
     const amount_cents = decimals === 0 ? Math.round(numericAmount) : Math.round(numericAmount * 100);
 
     const isCard = cards.some(c => c.id === selectedSourceId);
@@ -116,13 +117,13 @@ export const QuickAddModal: React.FC<QuickAddModalProps> = ({
       date: new Date().toISOString(),
     });
 
-    // Reset form
     setAmountStr('0');
     setNote('');
     onClose();
   };
 
   const filteredCategories = categories.filter(c => c.type === (mode === 'income' ? 'income' : 'expense'));
+  const hasSources = cards.length > 0 || accounts.length > 0;
 
   return (
     <Modal visible={visible} animationType="slide" transparent>
@@ -130,7 +131,6 @@ export const QuickAddModal: React.FC<QuickAddModalProps> = ({
         <View style={styles.modalContainer}>
           {/* Header */}
           <View style={styles.modalHeader}>
-            {/* Mode Switcher */}
             <View style={styles.modeTabs}>
               {(['expense', 'income', 'transfer'] as TransactionType[]).map(t => (
                 <TouchableOpacity
@@ -169,11 +169,11 @@ export const QuickAddModal: React.FC<QuickAddModalProps> = ({
               }}
               style={styles.closeButton}
             >
-              <X size={20} color={CozyTheme.textSecondary} />
+              <X size={18} color={CozyTheme.textPrimary} />
             </TouchableOpacity>
           </View>
 
-          {/* Amount Display with Currency Picker */}
+          {/* Amount Display */}
           <View style={styles.amountDisplayRow}>
             <TouchableOpacity
               style={styles.currencyPill}
@@ -224,62 +224,72 @@ export const QuickAddModal: React.FC<QuickAddModalProps> = ({
             </ScrollView>
           )}
 
-          {/* Source Account / Card Selector */}
-          <View style={styles.sectionHeaderRow}>
-            <Text style={styles.fieldSectionLabel}>
-              {mode === 'transfer' ? 'From Source' : 'Paid With'}
-            </Text>
-          </View>
+          {/* Source Account / Card */}
+          <Text style={styles.fieldSectionLabel}>
+            {mode === 'transfer' ? 'From Source' : 'Paid With'}
+          </Text>
 
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.sourceScrollContent}
-          >
-            {cards.map(c => {
-              const isSelected = selectedSourceId === c.id;
-              return (
-                <TouchableOpacity
-                  key={c.id}
-                  style={[
-                    styles.sourcePill,
-                    isSelected && { borderColor: c.color || CozyTheme.textPrimary, borderWidth: 2 },
-                  ]}
-                  onPress={() => {
-                    triggerLightHaptic();
-                    setSelectedSourceId(c.id);
-                  }}
-                >
-                  <View style={[styles.sourceDot, { backgroundColor: c.color || '#3E4968' }]} />
-                  <Text style={styles.sourcePillText}>
-                    {c.name} {c.last4 ? `(••${c.last4})` : ''}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
+          {!hasSources ? (
+            <TouchableOpacity
+              style={styles.noSourceButton}
+              onPress={() => {
+                onClose();
+                onOpenAddEntity();
+              }}
+            >
+              <Text style={styles.noSourceText}>+ Tap to create an Account or Card first</Text>
+            </TouchableOpacity>
+          ) : (
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.sourceScrollContent}
+            >
+              {cards.map(c => {
+                const isSelected = selectedSourceId === c.id;
+                return (
+                  <TouchableOpacity
+                    key={c.id}
+                    style={[
+                      styles.sourcePill,
+                      isSelected && { borderColor: CozyTheme.textPrimary, borderWidth: 1.5 },
+                    ]}
+                    onPress={() => {
+                      triggerLightHaptic();
+                      setSelectedSourceId(c.id);
+                    }}
+                  >
+                    <View style={[styles.sourceDot, { backgroundColor: c.color || '#1C222B' }]} />
+                    <Text style={styles.sourcePillText}>
+                      {c.name} {c.last4 ? `(••${c.last4})` : ''}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
 
-            {accounts.map(a => {
-              const isSelected = selectedSourceId === a.id;
-              return (
-                <TouchableOpacity
-                  key={a.id}
-                  style={[
-                    styles.sourcePill,
-                    isSelected && { borderColor: a.color || CozyTheme.textPrimary, borderWidth: 2 },
-                  ]}
-                  onPress={() => {
-                    triggerLightHaptic();
-                    setSelectedSourceId(a.id);
-                  }}
-                >
-                  <View style={[styles.sourceDot, { backgroundColor: a.color || '#2C343E' }]} />
-                  <Text style={styles.sourcePillText}>{a.name}</Text>
-                </TouchableOpacity>
-              );
-            })}
-          </ScrollView>
+              {accounts.map(a => {
+                const isSelected = selectedSourceId === a.id;
+                return (
+                  <TouchableOpacity
+                    key={a.id}
+                    style={[
+                      styles.sourcePill,
+                      isSelected && { borderColor: CozyTheme.textPrimary, borderWidth: 1.5 },
+                    ]}
+                    onPress={() => {
+                      triggerLightHaptic();
+                      setSelectedSourceId(a.id);
+                    }}
+                  >
+                    <View style={[styles.sourceDot, { backgroundColor: a.color || '#151311' }]} />
+                    <Text style={styles.sourcePillText}>{a.name}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          )}
 
-          {/* Destination Account (if transfer) */}
+          {/* Destination Account (Transfer) or Category (Expense/Income) */}
           {mode === 'transfer' ? (
             <View>
               <Text style={styles.fieldSectionLabel}>Transfer To</Text>
@@ -312,7 +322,6 @@ export const QuickAddModal: React.FC<QuickAddModalProps> = ({
               </ScrollView>
             </View>
           ) : (
-            /* Category Selector (if expense or income) */
             <View>
               <Text style={styles.fieldSectionLabel}>Category</Text>
               <ScrollView
@@ -356,14 +365,14 @@ export const QuickAddModal: React.FC<QuickAddModalProps> = ({
           <View style={styles.noteContainer}>
             <TextInput
               style={styles.noteInput}
-              placeholder="Add note or merchant name (optional)..."
+              placeholder="Note / Description (Optional)..."
               placeholderTextColor={CozyTheme.textTertiary}
               value={note}
               onChangeText={setNote}
             />
           </View>
 
-          {/* Tactile Keypad */}
+          {/* Keypad */}
           <View style={styles.keypad}>
             {[
               ['1', '2', '3'],
@@ -377,10 +386,10 @@ export const QuickAddModal: React.FC<QuickAddModalProps> = ({
                     key={key}
                     style={styles.keypadButton}
                     onPress={() => handleKeypadPress(key)}
-                    activeOpacity={0.5}
+                    activeOpacity={0.6}
                   >
                     {key === 'back' ? (
-                      <Delete size={22} color={CozyTheme.textPrimary} />
+                      <Delete size={20} color={CozyTheme.textPrimary} />
                     ) : (
                       <Text style={styles.keypadButtonText}>{key}</Text>
                     )}
@@ -403,9 +412,9 @@ export const QuickAddModal: React.FC<QuickAddModalProps> = ({
             onPress={handleSave}
             activeOpacity={0.8}
           >
-            <Check size={20} color="#FFFFFF" style={{ marginRight: 6 }} />
+            <Check size={18} color="#FFFFFF" style={{ marginRight: 6 }} />
             <Text style={styles.saveButtonText}>
-              Record {mode === 'expense' ? 'Expense' : mode === 'income' ? 'Income' : 'Transfer'}
+              Save {mode === 'expense' ? 'Expense' : mode === 'income' ? 'Income' : 'Transfer'}
             </Text>
           </TouchableOpacity>
         </View>
@@ -417,7 +426,7 @@ export const QuickAddModal: React.FC<QuickAddModalProps> = ({
 const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.72)',
+    backgroundColor: 'rgba(0, 0, 0, 0.78)',
     justifyContent: 'flex-end',
   },
   modalContainer: {
@@ -431,28 +440,23 @@ const styles = StyleSheet.create({
     paddingTop: 16,
     paddingBottom: 34,
     paddingHorizontal: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -10 },
-    shadowOpacity: 0.1,
-    shadowRadius: 20,
-    elevation: 10,
   },
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 14,
   },
   modeTabs: {
     flexDirection: 'row',
-    backgroundColor: CozyTheme.surfaceMuted,
-    borderRadius: 14,
+    backgroundColor: CozyTheme.surfaceElevated,
+    borderRadius: 12,
     padding: 3,
   },
   modeTab: {
     paddingVertical: 6,
     paddingHorizontal: 12,
-    borderRadius: 11,
+    borderRadius: 9,
   },
   modeTabExpense: {
     backgroundColor: CozyTheme.expense,
@@ -467,16 +471,16 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '700',
     color: CozyTheme.textSecondary,
-    letterSpacing: 0.3,
+    letterSpacing: 0.5,
   },
   modeTabTextActive: {
     color: '#FFFFFF',
   },
   closeButton: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: CozyTheme.surfaceMuted,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: CozyTheme.surfaceElevated,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -484,64 +488,76 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginVertical: 10,
-    gap: 12,
+    marginVertical: 6,
+    gap: 10,
   },
   currencyPill: {
     backgroundColor: CozyTheme.surfaceElevated,
-    paddingHorizontal: 12,
+    paddingHorizontal: 10,
     paddingVertical: 6,
-    borderRadius: 14,
+    borderRadius: 12,
     borderWidth: 1,
     borderColor: CozyTheme.border,
   },
   currencyPillText: {
-    fontSize: 14,
-    fontWeight: '700',
+    fontSize: 13,
+    fontWeight: '800',
     color: CozyTheme.textPrimary,
   },
   amountNumberText: {
-    fontSize: 42,
+    fontSize: 38,
     fontWeight: '800',
     color: CozyTheme.textPrimary,
     letterSpacing: -1,
   },
   currencyScroll: {
-    maxHeight: 40,
-    marginBottom: 10,
+    maxHeight: 38,
+    marginBottom: 8,
   },
   currencyScrollContent: {
     gap: 8,
-    paddingHorizontal: 4,
+    paddingHorizontal: 2,
   },
   currencyChoicePill: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 12,
-    backgroundColor: CozyTheme.surfaceMuted,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 10,
+    backgroundColor: CozyTheme.surfaceElevated,
   },
   currencyChoicePillActive: {
     backgroundColor: CozyTheme.textPrimary,
   },
   currencyChoiceText: {
-    fontSize: 12,
-    fontWeight: '600',
+    fontSize: 11,
+    fontWeight: '700',
     color: CozyTheme.textPrimary,
   },
   currencyChoiceTextActive: {
-    color: '#FFFFFF',
-  },
-  sectionHeaderRow: {
-    marginTop: 4,
+    color: CozyTheme.textInverse,
   },
   fieldSectionLabel: {
     fontSize: 11,
     fontWeight: '700',
     color: CozyTheme.textSecondary,
     textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    letterSpacing: 0.6,
     marginBottom: 6,
-    marginTop: 8,
+    marginTop: 6,
+  },
+  noSourceButton: {
+    backgroundColor: CozyTheme.surfaceElevated,
+    padding: 12,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginBottom: 6,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderColor: CozyTheme.borderStrong,
+  },
+  noSourceText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: CozyTheme.income,
   },
   sourceScrollContent: {
     gap: 8,
@@ -552,11 +568,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 12,
     paddingVertical: 8,
-    borderRadius: 14,
+    borderRadius: 12,
     backgroundColor: CozyTheme.surfaceElevated,
     borderWidth: 1,
     borderColor: CozyTheme.border,
-    gap: 7,
+    gap: 6,
   },
   sourcePillActive: {
     borderColor: CozyTheme.textPrimary,
@@ -569,7 +585,7 @@ const styles = StyleSheet.create({
   },
   sourcePillText: {
     fontSize: 12,
-    fontWeight: '600',
+    fontWeight: '700',
     color: CozyTheme.textPrimary,
   },
   categoryScrollContent: {
@@ -580,12 +596,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 14,
+    paddingVertical: 7,
+    borderRadius: 12,
     backgroundColor: CozyTheme.surfaceElevated,
     borderWidth: 1,
     borderColor: CozyTheme.border,
-    gap: 7,
+    gap: 6,
   },
   catCircle: {
     width: 8,
@@ -594,24 +610,24 @@ const styles = StyleSheet.create({
   },
   categoryPillText: {
     fontSize: 12,
-    fontWeight: '600',
+    fontWeight: '700',
     color: CozyTheme.textPrimary,
   },
   noteContainer: {
-    marginTop: 10,
-    marginBottom: 6,
+    marginTop: 8,
+    marginBottom: 4,
   },
   noteInput: {
-    backgroundColor: CozyTheme.surfaceMuted,
-    borderRadius: 14,
+    backgroundColor: CozyTheme.surfaceElevated,
+    borderRadius: 12,
     paddingHorizontal: 14,
     paddingVertical: 10,
     fontSize: 13,
     color: CozyTheme.textPrimary,
   },
   keypad: {
-    marginTop: 8,
-    marginBottom: 14,
+    marginTop: 6,
+    marginBottom: 10,
   },
   keypadRow: {
     flexDirection: 'row',
@@ -620,10 +636,10 @@ const styles = StyleSheet.create({
   },
   keypadButton: {
     flex: 1,
-    height: 48,
-    marginHorizontal: 4,
-    borderRadius: 14,
-    backgroundColor: CozyTheme.surfaceMuted,
+    height: 44,
+    marginHorizontal: 3,
+    borderRadius: 12,
+    backgroundColor: CozyTheme.surfaceElevated,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -634,15 +650,10 @@ const styles = StyleSheet.create({
   },
   saveButton: {
     flexDirection: 'row',
-    height: 52,
-    borderRadius: 18,
+    height: 48,
+    borderRadius: 16,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 3,
   },
   saveButtonExpense: {
     backgroundColor: CozyTheme.expense,
@@ -654,9 +665,8 @@ const styles = StyleSheet.create({
     backgroundColor: CozyTheme.transfer,
   },
   saveButtonText: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '700',
     color: '#FFFFFF',
-    letterSpacing: -0.2,
   },
 });
