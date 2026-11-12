@@ -33,6 +33,7 @@ yarn-error.*
 # local env files
 .env*.local
 .claude/
+castra_audit_source.md
 
 # typescript
 *.tsbuildinfo
