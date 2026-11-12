@@ -112,7 +112,7 @@ export const BiometricGate: React.FC<BiometricGateProps> = ({ children }) => {
 
           <View style={styles.securityBadge}>
             <ShieldCheck size={14} color={CozyTheme.income} />
-            <Text style={styles.securityBadgeText}>Encrypted on Device</Text>
+            <Text style={styles.securityBadgeText}>100% Local & Biometrically Protected</Text>
           </View>
         </View>
       </View>

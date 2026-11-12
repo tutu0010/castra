@@ -196,14 +196,18 @@ export const SettingsBackupModal: React.FC<SettingsBackupModalProps> = ({
                 onValueChange={handleToggleBiometrics}
                 trackColor={{ false: CozyTheme.surfaceElevated, true: CozyTheme.income }}
                 thumbColor="#FFFFFF"
-                disabled={Platform.OS !== 'web' && !biometricsAvailable}
+                disabled={Platform.OS === 'web' || !biometricsAvailable}
               />
             </View>
-            {Platform.OS !== 'web' && !biometricsAvailable && (
+            {Platform.OS === 'web' ? (
               <Text style={styles.unavailableWarning}>
-                Biometrics not enrolled on this device.
+                Biometric security requires native iOS or Android hardware.
               </Text>
-            )}
+            ) : !biometricsAvailable ? (
+              <Text style={styles.unavailableWarning}>
+                Biometrics not supported or not enrolled on this device.
+              </Text>
+            ) : null}
           </View>
 
           {/* Export & Sharing */}

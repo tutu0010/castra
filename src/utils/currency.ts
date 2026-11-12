@@ -23,6 +23,25 @@ export function getCurrencySymbol(code: string): string {
   return SUPPORTED_CURRENCIES[code]?.symbol || code;
 }
 
+export function getCurrencyDecimals(code: string): number {
+  return SUPPORTED_CURRENCIES[code]?.decimals ?? 2;
+}
+
+export function parseMoneyToMinorUnits(
+  inputStr: string,
+  currencyCode: string = 'INR'
+): number {
+  if (!inputStr || typeof inputStr !== 'string') return 0;
+  const cleanStr = inputStr.replace(/,/g, '').trim();
+  const val = parseFloat(cleanStr);
+  if (isNaN(val) || !isFinite(val)) return 0;
+
+  const decimals = getCurrencyDecimals(currencyCode);
+  const factor = Math.pow(10, decimals);
+  const minor = Math.round(val * factor);
+  return Number.isSafeInteger(minor) ? minor : 0;
+}
+
 export function formatMoney(
   cents: number,
   currencyCode: string = 'INR',
@@ -38,7 +57,8 @@ export function formatMoney(
 
   const isNegative = cents < 0;
   const absCents = Math.abs(cents);
-  const units = currency.decimals === 0 ? absCents : absCents / 100;
+  const divisor = Math.pow(10, currency.decimals);
+  const units = absCents / divisor;
 
   const locale = currencyCode === 'INR' ? 'en-IN' : undefined;
   const formattedNum = units.toLocaleString(locale, {
@@ -67,11 +87,17 @@ export function convertCurrency(
     return { convertedCents: amountCents, rate: 1.0 };
   }
 
-  const fromInfo = SUPPORTED_CURRENCIES[fromCurrency] || { rateToUSD: 1.0 };
-  const toInfo = SUPPORTED_CURRENCIES[toCurrency] || { rateToUSD: 1.0 };
+  const fromInfo = SUPPORTED_CURRENCIES[fromCurrency] || { rateToUSD: 1.0, decimals: 2 };
+  const toInfo = SUPPORTED_CURRENCIES[toCurrency] || { rateToUSD: 1.0, decimals: 2 };
 
   const rate = fromInfo.rateToUSD / toInfo.rateToUSD;
-  const convertedCents = Math.round(amountCents * rate);
+  // Account for minor unit exponent differences between source and target currencies
+  const exponentDiff = toInfo.decimals - fromInfo.decimals;
+  const factor = Math.pow(10, exponentDiff);
+  const converted = Math.round(amountCents * rate * factor);
 
-  return { convertedCents, rate };
+  return {
+    convertedCents: Number.isSafeInteger(converted) ? converted : 0,
+    rate,
+  };
 }

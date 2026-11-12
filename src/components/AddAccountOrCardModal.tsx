@@ -11,7 +11,7 @@ import {
 import { X, Check } from 'lucide-react-native';
 import { Account, Card } from '../types';
 import { CozyTheme } from '../theme/colors';
-import { SUPPORTED_CURRENCIES } from '../utils/currency';
+import { SUPPORTED_CURRENCIES, parseMoneyToMinorUnits } from '../utils/currency';
 import { triggerLightHaptic, triggerSuccessHaptic } from '../utils/haptics';
 
 interface AddAccountOrCardModalProps {
@@ -51,8 +51,7 @@ export const AddAccountOrCardModal: React.FC<AddAccountOrCardModalProps> = ({
     const id = `item_${Date.now()}`;
 
     if (activeTab === 'bank' || activeTab === 'wallet') {
-      const balanceNum = parseFloat(balanceStr) || 0;
-      const balance_cents = Math.round(balanceNum * 100);
+      const balance_cents = parseMoneyToMinorUnits(balanceStr, currency);
 
       onSaveAccount({
         id,
@@ -64,8 +63,7 @@ export const AddAccountOrCardModal: React.FC<AddAccountOrCardModalProps> = ({
         icon: activeTab === 'bank' ? 'landmark' : 'wallet',
       });
     } else if (activeTab === 'credit') {
-      const limitNum = parseFloat(limitStr) || 0;
-      const credit_limit_cents = Math.round(limitNum * 100);
+      const credit_limit_cents = parseMoneyToMinorUnits(limitStr, currency);
       const statement_day = parseInt(statementDayStr, 10) || null;
       const due_day = parseInt(dueDayStr, 10) || null;
 

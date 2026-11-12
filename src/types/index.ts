@@ -64,7 +64,10 @@ export interface RecurringBill {
   account_id?: string | null;
   card_id?: string | null;
   frequency: 'monthly' | 'yearly' | 'weekly';
-  due_day: number; // 1-31
+  due_day: number; // 1-31 (or 1-7 for weekly)
+  due_month?: number | null; // 1-12 for yearly
+  last_paid_at?: string | null; // ISO string when last paid
+  next_due_date?: string | null; // ISO date string of next scheduled due date
   is_active: boolean;
   created_at: string;
 }

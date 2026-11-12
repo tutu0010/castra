@@ -9,7 +9,7 @@ import {
 import { X, Check, Delete } from 'lucide-react-native';
 import { Account, Card } from '../types';
 import { CozyTheme } from '../theme/colors';
-import { formatMoney } from '../utils/currency';
+import { formatMoney, parseMoneyToMinorUnits, getCurrencyDecimals, getCurrencySymbol } from '../utils/currency';
 import { triggerLightHaptic, triggerSuccessHaptic } from '../utils/haptics';
 
 interface AdjustBalanceModalProps {
@@ -28,7 +28,16 @@ export const AdjustBalanceModal: React.FC<AdjustBalanceModalProps> = ({
   if (!entity) return null;
 
   const currentCents = 'balance_cents' in entity ? entity.balance_cents : (entity.outstanding_balance_cents || 0);
-  const [amountStr, setAmountStr] = useState<string>((currentCents / 100).toFixed(0));
+  const decimals = getCurrencyDecimals(entity.currency);
+  const [amountStr, setAmountStr] = useState<string>(() => (currentCents / Math.pow(10, decimals)).toFixed(0));
+
+  React.useEffect(() => {
+    if (visible && entity) {
+      const cents = 'balance_cents' in entity ? entity.balance_cents : (entity.outstanding_balance_cents || 0);
+      const dec = getCurrencyDecimals(entity.currency);
+      setAmountStr((cents / Math.pow(10, dec)).toString());
+    }
+  }, [visible, entity?.id]);
 
   const handleKeypadPress = (val: string) => {
     triggerLightHaptic();
@@ -42,6 +51,7 @@ export const AdjustBalanceModal: React.FC<AdjustBalanceModalProps> = ({
     }
 
     if (val === '.') {
+      if (decimals === 0) return;
       if (!amountStr.includes('.')) {
         setAmountStr(amountStr + '.');
       }
@@ -52,7 +62,7 @@ export const AdjustBalanceModal: React.FC<AdjustBalanceModalProps> = ({
       setAmountStr(val);
     } else {
       const parts = amountStr.split('.');
-      if (parts.length > 1 && parts[1].length >= 2) return;
+      if (parts.length > 1 && parts[1].length >= decimals) return;
       if (amountStr.length < 9) {
         setAmountStr(amountStr + val);
       }
@@ -60,9 +70,9 @@ export const AdjustBalanceModal: React.FC<AdjustBalanceModalProps> = ({
   };
 
   const handleSave = () => {
-    const num = parseFloat(amountStr) || 0;
+    const cents = parseMoneyToMinorUnits(amountStr, entity.currency);
     triggerSuccessHaptic();
-    onSaveBalance(Math.round(num * 100));
+    onSaveBalance(cents);
     onClose();
   };
 
@@ -95,7 +105,7 @@ export const AdjustBalanceModal: React.FC<AdjustBalanceModalProps> = ({
 
           {/* New Balance Display */}
           <View style={styles.amountDisplay}>
-            <Text style={styles.currencyPrefix}>₹</Text>
+            <Text style={styles.currencyPrefix}>{getCurrencySymbol(entity.currency)}</Text>
             <Text style={styles.amountText} numberOfLines={1}>
               {amountStr}
             </Text>

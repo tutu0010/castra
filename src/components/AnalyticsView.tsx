@@ -46,7 +46,10 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
   const totalExpenseCents = expenseTxs.reduce((sum, t) => sum + t.base_amount_cents, 0);
   const totalIncomeCents = incomeTxs.reduce((sum, t) => sum + t.base_amount_cents, 0);
   const netSavingsCents = totalIncomeCents - totalExpenseCents;
-  const savingsRate = totalIncomeCents > 0 ? Math.max(0, Math.round((netSavingsCents / totalIncomeCents) * 100)) : 0;
+  const isDeficit = netSavingsCents < 0;
+  const savingsRate = totalIncomeCents > 0
+    ? Math.round((netSavingsCents / totalIncomeCents) * 100)
+    : (totalExpenseCents > 0 ? -100 : 0);
 
   // Category breakdown
   const categoryMap = new Map<string, Category>(categories.map((c) => [c.id, c]));
@@ -152,9 +155,21 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
           </Text>
         </View>
 
-        <View style={styles.savingsRateBadge}>
-          <Percent size={11} color={CozyTheme.income} />
-          <Text style={styles.savingsRateText}>{savingsRate}% saved</Text>
+        <View
+          style={[
+            styles.savingsRateBadge,
+            { backgroundColor: isDeficit ? CozyTheme.expenseSoft : CozyTheme.incomeSoft },
+          ]}
+        >
+          <Percent size={11} color={isDeficit ? CozyTheme.expense : CozyTheme.income} />
+          <Text
+            style={[
+              styles.savingsRateText,
+              { color: isDeficit ? CozyTheme.expense : CozyTheme.income },
+            ]}
+          >
+            {isDeficit ? `${Math.abs(savingsRate)}% deficit` : `${savingsRate}% saved`}
+          </Text>
         </View>
       </View>
 

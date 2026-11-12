@@ -14,6 +14,7 @@ import {
   Trash2,
   Clock,
   Sparkles,
+  AlertCircle,
 } from 'lucide-react-native';
 import { CozyTheme } from '../theme/colors';
 import { RecurringBill, Account, Card, Category } from '../types';
@@ -32,6 +33,91 @@ interface RecurringRadarProps {
   onOpenAddBill: () => void;
 }
 
+interface ProcessedBill extends RecurringBill {
+  isPaid: boolean;
+  isOverdue: boolean;
+  daysUntil: number;
+  nextDueFormatted: string;
+}
+
+function processRecurringBill(bill: RecurringBill, now: Date = new Date()): ProcessedBill {
+  const currentDay = now.getDate();
+  const currentMonth = now.getMonth();
+  const currentYear = now.getFullYear();
+
+  let isPaid = false;
+  if (bill.last_paid_at) {
+    const lastPaid = new Date(bill.last_paid_at);
+    if (!isNaN(lastPaid.getTime())) {
+      if (bill.frequency === 'weekly') {
+        const diffDays = (now.getTime() - lastPaid.getTime()) / (1000 * 60 * 60 * 24);
+        isPaid = diffDays < 7;
+      } else if (bill.frequency === 'yearly') {
+        isPaid = lastPaid.getFullYear() === currentYear;
+      } else {
+        // Monthly
+        isPaid = lastPaid.getFullYear() === currentYear && lastPaid.getMonth() === currentMonth;
+      }
+    }
+  }
+
+  let isOverdue = false;
+  let daysUntil = 0;
+  let nextDueDate: Date;
+
+  if (bill.frequency === 'monthly') {
+    if (isPaid) {
+      const targetMonth = currentMonth + 1;
+      const targetYear = currentYear + (targetMonth > 11 ? 1 : 0);
+      const normalizedMonth = targetMonth % 12;
+      const maxDaysInTarget = new Date(targetYear, normalizedMonth + 1, 0).getDate();
+      const safeDay = Math.min(bill.due_day, maxDaysInTarget);
+      nextDueDate = new Date(targetYear, normalizedMonth, safeDay);
+      daysUntil = Math.max(1, Math.ceil((nextDueDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)));
+    } else {
+      if (currentDay > bill.due_day) {
+        isOverdue = true;
+        daysUntil = currentDay - bill.due_day;
+        nextDueDate = new Date(currentYear, currentMonth, bill.due_day);
+      } else {
+        daysUntil = bill.due_day - currentDay;
+        nextDueDate = new Date(currentYear, currentMonth, bill.due_day);
+      }
+    }
+  } else if (bill.frequency === 'weekly') {
+    if (isPaid) {
+      const lastPaid = new Date(bill.last_paid_at!);
+      const nextWeekMs = lastPaid.getTime() + 7 * 24 * 60 * 60 * 1000;
+      daysUntil = Math.max(1, Math.ceil((nextWeekMs - now.getTime()) / (1000 * 60 * 60 * 24)));
+      nextDueDate = new Date(nextWeekMs);
+    } else {
+      daysUntil = 0;
+      nextDueDate = now;
+    }
+  } else {
+    // Yearly
+    const targetMonth = bill.due_month ? bill.due_month - 1 : currentMonth;
+    const targetYear = isPaid ? currentYear + 1 : currentYear;
+    nextDueDate = new Date(targetYear, targetMonth, bill.due_day);
+    if (!isPaid && nextDueDate.getTime() < now.getTime()) {
+      isOverdue = true;
+      daysUntil = Math.max(1, Math.ceil((now.getTime() - nextDueDate.getTime()) / (1000 * 60 * 60 * 24)));
+    } else {
+      daysUntil = Math.max(0, Math.ceil((nextDueDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)));
+    }
+  }
+
+  const nextDueFormatted = nextDueDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+
+  return {
+    ...bill,
+    isPaid,
+    isOverdue,
+    daysUntil,
+    nextDueFormatted,
+  };
+}
+
 export const RecurringRadar: React.FC<RecurringRadarProps> = ({
   bills,
   accounts,
@@ -43,20 +129,14 @@ export const RecurringRadar: React.FC<RecurringRadarProps> = ({
   onDeleteBill,
   onOpenAddBill,
 }) => {
-  const currentDay = new Date().getDate();
-  const currentMonth = new Date().getMonth();
-  const currentYear = new Date().getFullYear();
-  const daysInCurrentMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
-
-  // Sort bills by urgency (days until next due)
-  const sortedBills = [...bills].map((bill) => {
-    let daysUntil = bill.due_day - currentDay;
-    if (daysUntil < 0) {
-      daysUntil += daysInCurrentMonth;
-    }
-    return { ...bill, daysUntil };
-  }).sort((a, b) => {
+  const processedBills = bills.map((b) => processRecurringBill(b));
+  const sortedBills = processedBills.sort((a, b) => {
     if (a.is_active !== b.is_active) return a.is_active ? -1 : 1;
+    if (a.isOverdue && !b.isOverdue) return -1;
+    if (!a.isOverdue && b.isOverdue) return 1;
+    if (a.isOverdue && b.isOverdue) return b.daysUntil - a.daysUntil;
+    if (!a.isPaid && b.isPaid) return -1;
+    if (a.isPaid && !b.isPaid) return 1;
     return a.daysUntil - b.daysUntil;
   });
 
@@ -116,8 +196,8 @@ export const RecurringRadar: React.FC<RecurringRadarProps> = ({
       ) : (
         <View style={styles.billList}>
           {sortedBills.map((bill) => {
-            const isDueSoon = bill.daysUntil <= 3;
-            const isDueToday = bill.daysUntil === 0;
+            const isDueSoon = bill.daysUntil <= 3 && !bill.isPaid && !bill.isOverdue;
+            const isDueToday = bill.daysUntil === 0 && !bill.isPaid && !bill.isOverdue;
 
             return (
               <View
@@ -125,7 +205,9 @@ export const RecurringRadar: React.FC<RecurringRadarProps> = ({
                 style={[
                   styles.billCard,
                   !bill.is_active && styles.billCardInactive,
+                  bill.isOverdue && bill.is_active && styles.billCardOverdue,
                   isDueSoon && bill.is_active && styles.billCardDueSoon,
+                  bill.isPaid && styles.billCardPaid,
                 ]}
               >
                 <View style={styles.billCardTop}>
@@ -154,37 +236,50 @@ export const RecurringRadar: React.FC<RecurringRadarProps> = ({
                         </Text>
                       </View>
 
-                      <View
-                        style={[
-                          styles.urgencyTag,
-                          isDueToday && styles.urgencyTagToday,
-                          isDueSoon && !isDueToday && styles.urgencyTagSoon,
-                        ]}
-                      >
-                        <Clock
-                          size={10}
-                          color={
-                            isDueToday
-                              ? CozyTheme.expense
-                              : isDueSoon
-                              ? '#F59E0B'
-                              : CozyTheme.textSecondary
-                          }
-                        />
-                        <Text
+                      {bill.isPaid ? (
+                        <View style={[styles.urgencyTag, styles.urgencyTagPaid]}>
+                          <Check size={10} color={CozyTheme.income} />
+                          <Text style={[styles.urgencyText, styles.urgencyTextPaid]}>
+                            Next: {bill.nextDueFormatted}
+                          </Text>
+                        </View>
+                      ) : bill.isOverdue ? (
+                        <View style={[styles.urgencyTag, styles.urgencyTagOverdue]}>
+                          <AlertCircle size={10} color={CozyTheme.expense} />
+                          <Text style={[styles.urgencyText, styles.urgencyTextOverdue]}>
+                            Overdue {bill.daysUntil}d
+                          </Text>
+                        </View>
+                      ) : isDueToday ? (
+                        <View style={[styles.urgencyTag, styles.urgencyTagToday]}>
+                          <Clock size={10} color={CozyTheme.expense} />
+                          <Text style={[styles.urgencyText, styles.urgencyTextToday]}>
+                            Due Today!
+                          </Text>
+                        </View>
+                      ) : (
+                        <View
                           style={[
-                            styles.urgencyText,
-                            isDueToday && styles.urgencyTextToday,
-                            isDueSoon && !isDueToday && styles.urgencyTextSoon,
+                            styles.urgencyTag,
+                            isDueSoon && styles.urgencyTagSoon,
                           ]}
                         >
-                          {isDueToday
-                            ? 'Due Today!'
-                            : bill.daysUntil === 1
-                            ? 'Tomorrow'
-                            : `In ${bill.daysUntil}d (${bill.due_day}th)`}
-                        </Text>
-                      </View>
+                          <Clock
+                            size={10}
+                            color={isDueSoon ? '#F59E0B' : CozyTheme.textSecondary}
+                          />
+                          <Text
+                            style={[
+                              styles.urgencyText,
+                              isDueSoon && styles.urgencyTextSoon,
+                            ]}
+                          >
+                            {bill.daysUntil === 1
+                              ? 'Tomorrow'
+                              : `In ${bill.daysUntil}d (${bill.due_day}th)`}
+                          </Text>
+                        </View>
+                      )}
                     </View>
                   </View>
 
@@ -198,17 +293,24 @@ export const RecurringRadar: React.FC<RecurringRadarProps> = ({
 
                 {/* Quick 1-Tap Actions */}
                 <View style={styles.billActionsRow}>
-                  <TouchableOpacity
-                    style={styles.markPaidBtn}
-                    onPress={() => {
-                      triggerSuccessHaptic();
-                      onPayBill(bill);
-                    }}
-                    activeOpacity={0.8}
-                  >
-                    <Check size={13} color={CozyTheme.textInverse} />
-                    <Text style={styles.markPaidText}>Mark Paid</Text>
-                  </TouchableOpacity>
+                  {bill.isPaid ? (
+                    <View style={styles.paidBadge}>
+                      <Check size={12} color={CozyTheme.income} />
+                      <Text style={styles.paidBadgeText}>Paid for this cycle</Text>
+                    </View>
+                  ) : (
+                    <TouchableOpacity
+                      style={styles.markPaidBtn}
+                      onPress={() => {
+                        triggerSuccessHaptic();
+                        onPayBill(bill);
+                      }}
+                      activeOpacity={0.8}
+                    >
+                      <Check size={13} color={CozyTheme.textInverse} />
+                      <Text style={styles.markPaidText}>Mark Paid</Text>
+                    </TouchableOpacity>
+                  )}
 
                   <TouchableOpacity
                     style={styles.deleteBtn}
@@ -303,6 +405,12 @@ const styles = StyleSheet.create({
   billCardDueSoon: {
     borderColor: 'rgba(245, 158, 11, 0.4)',
   },
+  billCardOverdue: {
+    borderColor: 'rgba(239, 68, 68, 0.4)',
+  },
+  billCardPaid: {
+    borderColor: 'rgba(52, 211, 153, 0.25)',
+  },
   billCardTop: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -365,6 +473,12 @@ const styles = StyleSheet.create({
   urgencyTagToday: {
     backgroundColor: CozyTheme.expenseSoft,
   },
+  urgencyTagOverdue: {
+    backgroundColor: 'rgba(239, 68, 68, 0.15)',
+  },
+  urgencyTagPaid: {
+    backgroundColor: CozyTheme.incomeSoft,
+  },
   urgencyText: {
     fontSize: 10,
     color: CozyTheme.textSecondary,
@@ -376,6 +490,14 @@ const styles = StyleSheet.create({
   },
   urgencyTextToday: {
     color: CozyTheme.expense,
+    fontWeight: '700',
+  },
+  urgencyTextOverdue: {
+    color: CozyTheme.expense,
+    fontWeight: '700',
+  },
+  urgencyTextPaid: {
+    color: CozyTheme.income,
     fontWeight: '700',
   },
   amountCol: {
@@ -414,6 +536,20 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '700',
     color: CozyTheme.textInverse,
+  },
+  paidBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingVertical: 5,
+    paddingHorizontal: 10,
+    borderRadius: 8,
+    backgroundColor: CozyTheme.incomeSoft,
+  },
+  paidBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: CozyTheme.income,
   },
   deleteBtn: {
     padding: 5,

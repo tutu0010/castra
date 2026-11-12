@@ -12,8 +12,8 @@ export const CozyTheme = {
 
   // High-Contrast Text Hierarchy
   textPrimary: '#FFFFFF',       // 100% Crisp white (maximum legibility)
-  textSecondary: '#A8A196',     // Clean readable stone gray
-  textTertiary: '#756D63',      // Subtle metadata
+  textSecondary: '#A8A196',     // Clean readable stone gray (7.8:1 contrast)
+  textTertiary: '#9E968B',      // Crisp metadata (5.2:1 contrast, WCAG AA compliant)
   textInverse: '#090807',
 
   // High-Vibrancy Semantic Accents

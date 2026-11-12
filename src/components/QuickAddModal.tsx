@@ -11,7 +11,7 @@ import {
 import { X, Delete, Check } from 'lucide-react-native';
 import { Account, Card, Category, TransactionType } from '../types';
 import { CozyTheme } from '../theme/colors';
-import { SUPPORTED_CURRENCIES, getCurrencySymbol } from '../utils/currency';
+import { SUPPORTED_CURRENCIES, getCurrencySymbol, parseMoneyToMinorUnits } from '../utils/currency';
 import { triggerLightHaptic, triggerSuccessHaptic } from '../utils/haptics';
 
 interface QuickAddModalProps {
@@ -95,13 +95,16 @@ export const QuickAddModal: React.FC<QuickAddModalProps> = ({
   };
 
   const handleSave = () => {
-    const numericAmount = parseFloat(amountStr);
-    if (!numericAmount || numericAmount <= 0) return;
+    const amount_cents = parseMoneyToMinorUnits(amountStr, selectedCurrency);
+    if (!amount_cents || amount_cents <= 0) return;
+
+    if (mode === 'transfer') {
+      if (!selectedSourceId || !selectedToAccountId || selectedSourceId === selectedToAccountId) {
+        return;
+      }
+    }
 
     triggerSuccessHaptic();
-    const currencyInfo = SUPPORTED_CURRENCIES[selectedCurrency] || { decimals: 2 };
-    const decimals = currencyInfo.decimals ?? 2;
-    const amount_cents = decimals === 0 ? Math.round(numericAmount) : Math.round(numericAmount * 100);
 
     const isCard = cards.some(c => c.id === selectedSourceId);
     const isTargetCard = cards.some(c => c.id === selectedToAccountId);
@@ -140,6 +143,17 @@ export const QuickAddModal: React.FC<QuickAddModalProps> = ({
                   onPress={() => {
                     triggerLightHaptic();
                     setMode(t);
+                    if (t === 'transfer' || t === 'income') {
+                      // Cards cannot fund transfers or receive direct income deposits
+                      const isSourceCard = cards.some(c => c.id === selectedSourceId);
+                      if (isSourceCard || !selectedSourceId) {
+                        setSelectedSourceId(accounts[0]?.id || '');
+                      }
+                      if (selectedToAccountId === selectedSourceId || !selectedToAccountId) {
+                        const nextDest = accounts.find(a => a.id !== selectedSourceId)?.id || cards.find(c => c.type === 'credit')?.id || '';
+                        setSelectedToAccountId(nextDest);
+                      }
+                    }
                   }}
                   style={[
                     styles.modeTab,
@@ -247,7 +261,7 @@ export const QuickAddModal: React.FC<QuickAddModalProps> = ({
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.sourceScrollContent}
             >
-              {cards.map(c => {
+              {mode === 'expense' && cards.map(c => {
                 const isSelected = selectedSourceId === c.id;
                 return (
                   <TouchableOpacity

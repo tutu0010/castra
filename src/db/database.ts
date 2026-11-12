@@ -13,7 +13,7 @@ const DEFAULT_CATEGORIES: Category[] = [
   { id: 'cat_housing', name: 'Rent & Bills', icon: 'home', color: '#60A5FA', type: 'expense', monthly_budget_cents: 2500000, created_at: now },
   { id: 'cat_transport', name: 'Fuel & Cab', icon: 'car', color: '#A78BFA', type: 'expense', monthly_budget_cents: 500000, created_at: now },
   { id: 'cat_shopping', name: 'Shopping', icon: 'shopping-bag', color: '#FB923C', type: 'expense', monthly_budget_cents: 800000, created_at: now },
-  { id: 'cat_subs', name: 'Subscriptions', icon: 'tv', color: '#756D63', type: 'expense', monthly_budget_cents: 200000, created_at: now },
+  { id: 'cat_subs', name: 'Subscriptions', icon: 'tv', color: '#9E968B', type: 'expense', monthly_budget_cents: 200000, created_at: now },
   { id: 'cat_salary', name: 'Salary / Income', icon: 'briefcase', color: '#34D399', type: 'income', monthly_budget_cents: null, created_at: now },
   { id: 'cat_freelance', name: 'Side Hustle', icon: 'laptop', color: '#60A5FA', type: 'income', monthly_budget_cents: null, created_at: now },
 ];
@@ -97,7 +97,7 @@ function saveWebStore(store: WebStore): void {
 }
 
 // ----------------------------------------------------
-// NATIVE SQLITE INITIALIZATION
+// NATIVE SQLITE INITIALIZATION & MIGRATIONS
 // ----------------------------------------------------
 let dbInstance: SQLite.SQLiteDatabase | null = null;
 
@@ -107,90 +107,146 @@ export function getDatabase(): SQLite.SQLiteDatabase | null {
   }
 
   if (!dbInstance) {
-    dbInstance = SQLite.openDatabaseSync('castra.db');
-    initNativeDatabase(dbInstance);
+    const db = SQLite.openDatabaseSync('castra.db');
+    initNativeDatabase(db);
+    dbInstance = db;
   }
   return dbInstance;
 }
 
 function initNativeDatabase(db: SQLite.SQLiteDatabase) {
+  // 1. Immediately enforce foreign keys & write-ahead logging
   db.execSync(`
+    PRAGMA foreign_keys = ON;
     PRAGMA journal_mode = WAL;
-
-    CREATE TABLE IF NOT EXISTS settings (
-      key TEXT PRIMARY KEY,
-      value TEXT NOT NULL
-    );
-
-    CREATE TABLE IF NOT EXISTS accounts (
-      id TEXT PRIMARY KEY,
-      name TEXT NOT NULL,
-      type TEXT NOT NULL,
-      balance_cents INTEGER NOT NULL DEFAULT 0,
-      currency TEXT NOT NULL DEFAULT 'INR',
-      color TEXT NOT NULL DEFAULT '#1C222B',
-      icon TEXT NOT NULL DEFAULT 'landmark',
-      created_at TEXT NOT NULL
-    );
-
-    CREATE TABLE IF NOT EXISTS cards (
-      id TEXT PRIMARY KEY,
-      name TEXT NOT NULL,
-      type TEXT NOT NULL,
-      bank_account_id TEXT,
-      currency TEXT NOT NULL DEFAULT 'INR',
-      color TEXT NOT NULL DEFAULT '#1D1E22',
-      last4 TEXT,
-      credit_limit_cents INTEGER,
-      statement_day INTEGER,
-      due_day INTEGER,
-      created_at TEXT NOT NULL,
-      FOREIGN KEY (bank_account_id) REFERENCES accounts(id) ON DELETE SET NULL
-    );
-
-    CREATE TABLE IF NOT EXISTS categories (
-      id TEXT PRIMARY KEY,
-      name TEXT NOT NULL,
-      icon TEXT NOT NULL DEFAULT 'tag',
-      color TEXT NOT NULL DEFAULT '#756D63',
-      type TEXT NOT NULL DEFAULT 'expense',
-      monthly_budget_cents INTEGER,
-      created_at TEXT NOT NULL
-    );
-
-    CREATE TABLE IF NOT EXISTS transactions (
-      id TEXT PRIMARY KEY,
-      account_id TEXT,
-      card_id TEXT,
-      category_id TEXT,
-      amount_cents INTEGER NOT NULL,
-      currency TEXT NOT NULL DEFAULT 'INR',
-      exchange_rate REAL NOT NULL DEFAULT 1.0,
-      base_amount_cents INTEGER NOT NULL,
-      type TEXT NOT NULL,
-      to_account_id TEXT,
-      date TEXT NOT NULL,
-      note TEXT,
-      created_at TEXT NOT NULL,
-      FOREIGN KEY (account_id) REFERENCES accounts(id) ON DELETE SET NULL,
-      FOREIGN KEY (card_id) REFERENCES cards(id) ON DELETE SET NULL,
-      FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE SET NULL
-    );
-
-    CREATE TABLE IF NOT EXISTS recurring_bills (
-      id TEXT PRIMARY KEY,
-      name TEXT NOT NULL,
-      amount_cents INTEGER NOT NULL,
-      currency TEXT NOT NULL DEFAULT 'INR',
-      category_id TEXT,
-      account_id TEXT,
-      card_id TEXT,
-      frequency TEXT NOT NULL DEFAULT 'monthly',
-      due_day INTEGER NOT NULL,
-      is_active INTEGER NOT NULL DEFAULT 1,
-      created_at TEXT NOT NULL
-    );
   `);
+
+  // 2. Versioned Migration Engine
+  const versionRow = db.getFirstSync<{ user_version: number }>('PRAGMA user_version;');
+  const version = versionRow?.user_version ?? 0;
+
+  db.withTransactionSync(() => {
+    if (version < 1) {
+      db.execSync(`
+        CREATE TABLE IF NOT EXISTS settings (
+          key TEXT PRIMARY KEY,
+          value TEXT NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS accounts (
+          id TEXT PRIMARY KEY,
+          name TEXT NOT NULL,
+          type TEXT NOT NULL,
+          balance_cents INTEGER NOT NULL DEFAULT 0,
+          currency TEXT NOT NULL DEFAULT 'INR',
+          color TEXT NOT NULL DEFAULT '#1C222B',
+          icon TEXT NOT NULL DEFAULT 'landmark',
+          created_at TEXT NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS cards (
+          id TEXT PRIMARY KEY,
+          name TEXT NOT NULL,
+          type TEXT NOT NULL,
+          bank_account_id TEXT,
+          currency TEXT NOT NULL DEFAULT 'INR',
+          color TEXT NOT NULL DEFAULT '#1D1E22',
+          last4 TEXT,
+          credit_limit_cents INTEGER,
+          statement_day INTEGER,
+          due_day INTEGER,
+          created_at TEXT NOT NULL,
+          FOREIGN KEY (bank_account_id) REFERENCES accounts(id) ON DELETE SET NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS categories (
+          id TEXT PRIMARY KEY,
+          name TEXT NOT NULL,
+          icon TEXT NOT NULL DEFAULT 'tag',
+          color TEXT NOT NULL DEFAULT '#756D63',
+          type TEXT NOT NULL DEFAULT 'expense',
+          monthly_budget_cents INTEGER,
+          created_at TEXT NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS transactions (
+          id TEXT PRIMARY KEY,
+          account_id TEXT,
+          card_id TEXT,
+          category_id TEXT,
+          amount_cents INTEGER NOT NULL,
+          currency TEXT NOT NULL DEFAULT 'INR',
+          exchange_rate REAL NOT NULL DEFAULT 1.0,
+          base_amount_cents INTEGER NOT NULL,
+          type TEXT NOT NULL,
+          to_account_id TEXT,
+          date TEXT NOT NULL,
+          note TEXT,
+          created_at TEXT NOT NULL,
+          FOREIGN KEY (account_id) REFERENCES accounts(id) ON DELETE SET NULL,
+          FOREIGN KEY (card_id) REFERENCES cards(id) ON DELETE SET NULL,
+          FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE SET NULL,
+          FOREIGN KEY (to_account_id) REFERENCES accounts(id) ON DELETE SET NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS recurring_bills (
+          id TEXT PRIMARY KEY,
+          name TEXT NOT NULL,
+          amount_cents INTEGER NOT NULL,
+          currency TEXT NOT NULL DEFAULT 'INR',
+          category_id TEXT,
+          account_id TEXT,
+          card_id TEXT,
+          frequency TEXT NOT NULL DEFAULT 'monthly',
+          due_day INTEGER NOT NULL,
+          due_month INTEGER,
+          last_paid_at TEXT,
+          next_due_date TEXT,
+          is_active INTEGER NOT NULL DEFAULT 1,
+          created_at TEXT NOT NULL,
+          FOREIGN KEY (account_id) REFERENCES accounts(id) ON DELETE SET NULL,
+          FOREIGN KEY (card_id) REFERENCES cards(id) ON DELETE SET NULL,
+          FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE SET NULL
+        );
+      `);
+      db.execSync('PRAGMA user_version = 1;');
+    }
+
+    if (version < 2) {
+      // Create high-speed secondary indexes
+      db.execSync(`
+        CREATE INDEX IF NOT EXISTS idx_tx_date ON transactions(date DESC, created_at DESC);
+        CREATE INDEX IF NOT EXISTS idx_tx_account ON transactions(account_id);
+        CREATE INDEX IF NOT EXISTS idx_tx_card_type ON transactions(card_id, type);
+        CREATE INDEX IF NOT EXISTS idx_tx_category_date ON transactions(category_id, date);
+        CREATE INDEX IF NOT EXISTS idx_tx_destination ON transactions(to_account_id);
+        CREATE INDEX IF NOT EXISTS idx_bills_active_due ON recurring_bills(is_active, due_day);
+      `);
+
+      // Add columns to recurring_bills if missing from earlier dev iterations
+      try {
+        db.execSync('ALTER TABLE recurring_bills ADD COLUMN due_month INTEGER;');
+      } catch {}
+      try {
+        db.execSync('ALTER TABLE recurring_bills ADD COLUMN last_paid_at TEXT;');
+      } catch {}
+      try {
+        db.execSync('ALTER TABLE recurring_bills ADD COLUMN next_due_date TEXT;');
+      } catch {}
+
+      db.execSync('PRAGMA user_version = 2;');
+    }
+  });
+
+  // Verify foreign key integrity
+  try {
+    const fkErrors = db.getAllSync('PRAGMA foreign_key_check;');
+    if (fkErrors && fkErrors.length > 0) {
+      console.warn('Foreign key integrity check found orphaned records:', fkErrors);
+    }
+  } catch (err) {
+    console.error('Foreign key check failed:', err);
+  }
 
   // Ensure default base currency is INR
   const baseCurr = db.getFirstSync<{ value: string }>('SELECT value FROM settings WHERE key = ?;', ['base_currency']);
@@ -209,11 +265,6 @@ function initNativeDatabase(db: SQLite.SQLiteDatabase) {
       );
     }
   }
-
-  // WIPE ANY OLD MOCK DATA so user gets a completely fresh app
-  db.runSync("DELETE FROM transactions WHERE id IN ('tx_1', 'tx_2', 'tx_3') OR account_id IN ('acc_main_bank', 'acc_savings', 'acc_cash_wallet') OR card_id IN ('card_sapphire', 'card_debit');");
-  db.runSync("DELETE FROM cards WHERE id IN ('card_sapphire', 'card_debit');");
-  db.runSync("DELETE FROM accounts WHERE id IN ('acc_main_bank', 'acc_savings', 'acc_cash_wallet');");
 }
 
 // ----------------------------------------------------
@@ -295,22 +346,28 @@ export function getAllCards(): Card[] {
   if (!db) return [];
   const cards = db.getAllSync<Card>('SELECT * FROM cards ORDER BY created_at ASC;');
 
+  // Single grouped aggregation query eliminating the N+1 query loop
+  const cardAggregates = db.getAllSync<{
+    card_id: string;
+    total_spent: number;
+    total_paid: number;
+  }>(`
+    SELECT 
+      card_id,
+      COALESCE(SUM(CASE WHEN type = 'expense' THEN amount_cents ELSE 0 END), 0) AS total_spent,
+      COALESCE(SUM(CASE WHEN type = 'transfer' THEN amount_cents ELSE 0 END), 0) AS total_paid
+    FROM transactions
+    WHERE card_id IS NOT NULL
+    GROUP BY card_id;
+  `);
+
+  const aggMap = new Map(cardAggregates.map(a => [a.card_id, a]));
+
   return cards.map(card => {
     if (card.type === 'credit') {
-      const result = db.getFirstSync<{ total_spent: number }>(
-        `SELECT COALESCE(SUM(amount_cents), 0) as total_spent 
-         FROM transactions 
-         WHERE card_id = ? AND type = 'expense';`,
-        [card.id]
-      );
-      const payments = db.getFirstSync<{ total_paid: number }>(
-        `SELECT COALESCE(SUM(amount_cents), 0) as total_paid 
-         FROM transactions 
-         WHERE (card_id = ? OR to_account_id = ?) AND type = 'transfer';`,
-        [card.id, card.id]
-      );
-      const spent = result?.total_spent || 0;
-      const paid = payments?.total_paid || 0;
+      const agg = aggMap.get(card.id);
+      const spent = agg?.total_spent || 0;
+      const paid = agg?.total_paid || 0;
       return {
         ...card,
         outstanding_balance_cents: Math.max(0, spent - paid),
@@ -350,38 +407,67 @@ export function updateAccountBalance(id: string, newBalanceCents: number): void 
   db?.runSync('UPDATE accounts SET balance_cents = ? WHERE id = ?;', [newBalanceCents, id]);
 }
 
-export function updateAccount(id: string, updates: Partial<Account>): void {
+export function adjustCardBalance(
+  cardId: string,
+  currentBalanceCents: number,
+  targetBalanceCents: number,
+  currency: string
+): void {
+  const diff = targetBalanceCents - currentBalanceCents;
+  if (diff === 0) return;
+
+  const nowIso = new Date().toISOString();
+  if (diff > 0) {
+    // Outstanding debt increased -> record adjustment expense
+    addTransaction({
+      id: `adj_${Date.now()}`,
+      card_id: cardId,
+      amount_cents: diff,
+      currency,
+      type: 'expense',
+      date: nowIso,
+      note: 'Balance Adjustment',
+    });
+  } else {
+    // Outstanding debt decreased -> record adjustment payment/credit
+    addTransaction({
+      id: `adj_${Date.now()}`,
+      card_id: cardId,
+      amount_cents: Math.abs(diff),
+      currency,
+      type: 'transfer',
+      date: nowIso,
+      note: 'Balance Adjustment',
+    });
+  }
+}
+
+export function updateCardLimit(id: string, newLimitCents: number | null): void {
   if (Platform.OS === 'web') {
     const store = getWebStore();
-    const idx = store.accounts.findIndex(a => a.id === id);
-    if (idx !== -1) {
-      store.accounts[idx] = { ...store.accounts[idx], ...updates };
+    const card = store.cards.find(c => c.id === id);
+    if (card) {
+      card.credit_limit_cents = newLimitCents;
       saveWebStore(store);
     }
     return;
   }
   const db = getDatabase();
-  if (!db) return;
-  const current = db.getFirstSync<Account>('SELECT * FROM accounts WHERE id = ?;', [id]);
-  if (!current) return;
-
-  const merged = { ...current, ...updates };
-  db.runSync(
-    'UPDATE accounts SET name = ?, type = ?, balance_cents = ?, currency = ?, color = ? WHERE id = ?;',
-    [merged.name, merged.type, merged.balance_cents, merged.currency, merged.color, id]
-  );
+  db?.runSync('UPDATE cards SET credit_limit_cents = ? WHERE id = ?;', [newLimitCents, id]);
 }
 
 export function deleteAccount(id: string): void {
   if (Platform.OS === 'web') {
     const store = getWebStore();
     store.accounts = store.accounts.filter(a => a.id !== id);
-    store.transactions = store.transactions.filter(t => t.account_id !== id);
+    store.transactions = store.transactions.filter(t => t.account_id !== id && t.to_account_id !== id);
     saveWebStore(store);
     return;
   }
   const db = getDatabase();
-  db?.runSync('DELETE FROM accounts WHERE id = ?;', [id]);
+  db?.withTransactionSync(() => {
+    db.runSync('DELETE FROM accounts WHERE id = ?;', [id]);
+  });
 }
 
 export function createCard(card: Omit<Card, 'created_at'>): void {
@@ -412,39 +498,6 @@ export function createCard(card: Omit<Card, 'created_at'>): void {
   );
 }
 
-export function updateCard(id: string, updates: Partial<Card>): void {
-  if (Platform.OS === 'web') {
-    const store = getWebStore();
-    const idx = store.cards.findIndex(c => c.id === id);
-    if (idx !== -1) {
-      store.cards[idx] = { ...store.cards[idx], ...updates };
-      saveWebStore(store);
-    }
-    return;
-  }
-  const db = getDatabase();
-  if (!db) return;
-  const current = db.getFirstSync<Card>('SELECT * FROM cards WHERE id = ?;', [id]);
-  if (!current) return;
-
-  const merged = { ...current, ...updates };
-  db.runSync(
-    `UPDATE cards SET name = ?, type = ?, bank_account_id = ?, currency = ?, color = ?, last4 = ?, credit_limit_cents = ?, statement_day = ?, due_day = ? WHERE id = ?;`,
-    [
-      merged.name,
-      merged.type,
-      merged.bank_account_id || null,
-      merged.currency,
-      merged.color,
-      merged.last4 || null,
-      merged.credit_limit_cents || null,
-      merged.statement_day || null,
-      merged.due_day || null,
-      id,
-    ]
-  );
-}
-
 export function deleteCard(id: string): void {
   if (Platform.OS === 'web') {
     const store = getWebStore();
@@ -454,11 +507,13 @@ export function deleteCard(id: string): void {
     return;
   }
   const db = getDatabase();
-  db?.runSync('DELETE FROM cards WHERE id = ?;', [id]);
+  db?.withTransactionSync(() => {
+    db.runSync('DELETE FROM cards WHERE id = ?;', [id]);
+  });
 }
 
 // ----------------------------------------------------
-// CATEGORIES & BUDGETS
+// CATEGORIES
 // ----------------------------------------------------
 export function getAllCategories(): Category[] {
   if (Platform.OS === 'web') {
@@ -503,8 +558,8 @@ export function createRecurringBill(bill: Omit<RecurringBill, 'created_at'>): vo
   }
   const db = getDatabase();
   db?.runSync(
-    `INSERT INTO recurring_bills (id, name, amount_cents, currency, category_id, account_id, card_id, frequency, due_day, is_active, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
+    `INSERT INTO recurring_bills (id, name, amount_cents, currency, category_id, account_id, card_id, frequency, due_day, due_month, last_paid_at, next_due_date, is_active, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
     [
       fullBill.id,
       fullBill.name,
@@ -513,12 +568,30 @@ export function createRecurringBill(bill: Omit<RecurringBill, 'created_at'>): vo
       fullBill.category_id || null,
       fullBill.account_id || null,
       fullBill.card_id || null,
-      fullBill.frequency,
+      fullBill.frequency || 'monthly',
       fullBill.due_day,
+      fullBill.due_month || null,
+      fullBill.last_paid_at || null,
+      fullBill.next_due_date || null,
       fullBill.is_active ? 1 : 0,
       fullBill.created_at,
     ]
   );
+}
+
+export function markRecurringBillPaid(billId: string): void {
+  const nowIso = new Date().toISOString();
+  if (Platform.OS === 'web') {
+    const store = getWebStore();
+    const bill = store.recurring_bills.find(b => b.id === billId);
+    if (bill) {
+      bill.last_paid_at = nowIso;
+      saveWebStore(store);
+    }
+    return;
+  }
+  const db = getDatabase();
+  db?.runSync('UPDATE recurring_bills SET last_paid_at = ? WHERE id = ?;', [nowIso, billId]);
 }
 
 export function toggleRecurringBill(id: string, isActive: boolean): void {
@@ -549,7 +622,7 @@ export function deleteRecurringBill(id: string): void {
 // ----------------------------------------------------
 // TRANSACTIONS
 // ----------------------------------------------------
-export function getAllTransactions(limit: number = 300): Transaction[] {
+export function getAllTransactions(limit: number = 2000): Transaction[] {
   if (Platform.OS === 'web') {
     return getWebStore().transactions.slice(0, limit);
   }
@@ -717,10 +790,7 @@ export function deleteTransaction(txId: string): void {
         db.runSync('UPDATE accounts SET balance_cents = balance_cents + ? WHERE id = ?;', [tx.amount_cents, tx.account_id]);
       }
       if (tx.to_account_id) {
-        const targetAcc = db.getFirstSync<Account>('SELECT id FROM accounts WHERE id = ?;', [tx.to_account_id]);
-        if (targetAcc) {
-          db.runSync('UPDATE accounts SET balance_cents = balance_cents - ? WHERE id = ?;', [tx.amount_cents, tx.to_account_id]);
-        }
+        db.runSync('UPDATE accounts SET balance_cents = balance_cents - ? WHERE id = ?;', [tx.amount_cents, tx.to_account_id]);
       }
     }
 
@@ -729,20 +799,20 @@ export function deleteTransaction(txId: string): void {
 }
 
 // ----------------------------------------------------
-// EXPORT & IMPORT
+// EXPORT & RESTORE BACKUP
 // ----------------------------------------------------
 export function exportDatabaseJSON(): string {
-  const baseCurrency = getBaseCurrency();
   const accounts = getAllAccounts();
   const cards = getAllCards();
   const categories = getAllCategories();
-  const transactions = getAllTransactions(10000);
+  const transactions = getAllTransactions(100000);
   const recurring_bills = getAllRecurringBills();
+  const base_currency = getBaseCurrency();
 
   const backup: DatabaseBackup = {
     version: 3,
     exported_at: new Date().toISOString(),
-    base_currency: baseCurrency,
+    base_currency,
     accounts,
     cards,
     categories,
@@ -754,7 +824,7 @@ export function exportDatabaseJSON(): string {
 }
 
 export function exportTransactionsCSV(): string {
-  const transactions = getAllTransactions(10000);
+  const transactions = getAllTransactions(100000);
   const accounts = getAllAccounts();
   const cards = getAllCards();
   const categories = getAllCategories();
@@ -772,7 +842,11 @@ export function exportTransactionsCSV(): string {
       ? accountMap.get(tx.account_id) || 'Account'
       : '';
     const categoryName = tx.category_id ? catMap.get(tx.category_id) || '' : '';
-    const note = (tx.note || '').replace(/"/g, '""');
+    // Prevent spreadsheet formula injection & escape quotes
+    let note = (tx.note || '').replace(/"/g, '""');
+    if (/^[=+\-@]/.test(note)) {
+      note = `'${note}`;
+    }
 
     return [
       tx.date,
@@ -792,8 +866,40 @@ export function exportTransactionsCSV(): string {
 export function importDatabaseJSON(jsonStr: string): boolean {
   try {
     const backup: DatabaseBackup = JSON.parse(jsonStr);
-    if (!backup.accounts || !backup.transactions) {
-      throw new Error('Invalid backup schema');
+
+    // 1. Strict structural array validation
+    if (
+      !backup ||
+      typeof backup !== 'object' ||
+      !Array.isArray(backup.accounts) ||
+      !Array.isArray(backup.cards) ||
+      !Array.isArray(backup.categories) ||
+      !Array.isArray(backup.transactions)
+    ) {
+      console.error('Invalid backup schema: Missing required arrays');
+      return false;
+    }
+
+    // 2. Strict integer-cent arithmetic invariant validation
+    for (const a of backup.accounts) {
+      if (!Number.isSafeInteger(a.balance_cents)) {
+        console.error(`Invalid balance integer in account: ${a.name}`);
+        return false;
+      }
+    }
+    for (const tx of backup.transactions) {
+      if (!Number.isSafeInteger(tx.amount_cents) || !Number.isSafeInteger(tx.base_amount_cents)) {
+        console.error(`Invalid monetary amount in transaction: ${tx.id}`);
+        return false;
+      }
+    }
+    if (backup.recurring_bills && Array.isArray(backup.recurring_bills)) {
+      for (const r of backup.recurring_bills) {
+        if (!Number.isSafeInteger(r.amount_cents)) {
+          console.error(`Invalid monetary amount in recurring bill: ${r.id}`);
+          return false;
+        }
+      }
     }
 
     if (Platform.OS === 'web') {
@@ -814,6 +920,9 @@ export function importDatabaseJSON(jsonStr: string): boolean {
     if (!db) return false;
 
     db.withTransactionSync(() => {
+      // Temporarily toggle foreign keys during full snapshot wipe to avoid cascade order races
+      db.execSync('PRAGMA foreign_keys = OFF;');
+
       db.runSync('DELETE FROM transactions;');
       db.runSync('DELETE FROM cards;');
       db.runSync('DELETE FROM accounts;');
@@ -880,15 +989,32 @@ export function importDatabaseJSON(jsonStr: string): boolean {
         );
       }
 
-      if (backup.recurring_bills) {
+      if (backup.recurring_bills && Array.isArray(backup.recurring_bills)) {
         for (const r of backup.recurring_bills) {
           db.runSync(
-            `INSERT INTO recurring_bills (id, name, amount_cents, currency, category_id, account_id, card_id, frequency, due_day, is_active, created_at)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
-            [r.id, r.name, r.amount_cents, r.currency, r.category_id || null, r.account_id || null, r.card_id || null, r.frequency, r.due_day, r.is_active ? 1 : 0, r.created_at]
+            `INSERT INTO recurring_bills (id, name, amount_cents, currency, category_id, account_id, card_id, frequency, due_day, due_month, last_paid_at, next_due_date, is_active, created_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
+            [
+              r.id,
+              r.name,
+              r.amount_cents,
+              r.currency,
+              r.category_id || null,
+              r.account_id || null,
+              r.card_id || null,
+              r.frequency || 'monthly',
+              r.due_day,
+              r.due_month || null,
+              r.last_paid_at || null,
+              r.next_due_date || null,
+              r.is_active ? 1 : 0,
+              r.created_at,
+            ]
           );
         }
       }
+
+      db.execSync('PRAGMA foreign_keys = ON;');
     });
 
     return true;

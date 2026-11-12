@@ -4,9 +4,11 @@ import {
   View,
   Text,
   ScrollView,
+  FlatList,
   TouchableOpacity,
   RefreshControl,
   useWindowDimensions,
+  Platform,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -37,10 +39,12 @@ import {
   createAccount,
   createCard,
   updateAccountBalance,
+  adjustCardBalance,
   deleteAccount,
   deleteCard,
   updateCategoryBudget,
   createRecurringBill,
+  markRecurringBillPaid,
   toggleRecurringBill,
   deleteRecurringBill,
 } from './src/db/database';
@@ -145,7 +149,12 @@ function MainAppContent() {
 
   // Balance Adjuster (Direct modification)
   const handleUpdateBalance = (entityId: string, newBalanceCents: number) => {
-    updateAccountBalance(entityId, newBalanceCents);
+    const card = cards.find((c) => c.id === entityId);
+    if (card) {
+      adjustCardBalance(card.id, card.outstanding_balance_cents || 0, newBalanceCents, card.currency);
+    } else {
+      updateAccountBalance(entityId, newBalanceCents);
+    }
     loadData();
   };
 
@@ -195,6 +204,8 @@ function MainAppContent() {
       date: new Date().toISOString(),
       note: bill.name,
     });
+    // Mark bill paid to advance schedule and prevent duplicate payments
+    markRecurringBillPaid(bill.id);
     triggerSuccessHaptic();
     loadData();
   };
@@ -376,12 +387,18 @@ function MainAppContent() {
         </TouchableOpacity>
       </View>
 
-      {/* TAB 1: LEDGER */}
+      {/* TAB 1: LEDGER (Virtualized FlatList for high performance at scale) */}
       {activeTab === 'ledger' && (
-        <ScrollView
+        <FlatList
+          data={filteredTransactions}
+          keyExtractor={(tx) => tx.id}
           style={styles.container}
           contentContainerStyle={[styles.scrollContent, { paddingBottom: scrollBottomPadding }]}
           showsVerticalScrollIndicator={false}
+          initialNumToRender={15}
+          maxToRenderPerBatch={15}
+          windowSize={7}
+          removeClippedSubviews={Platform.OS !== 'web'}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
@@ -389,72 +406,73 @@ function MainAppContent() {
               tintColor={CozyTheme.textSecondary}
             />
           }
-        >
-          {/* Executive Net Worth Card */}
-          <SummaryHeader
-            accounts={accounts}
-            cards={cards}
-            baseCurrency={baseCurrency}
-          />
+          ListHeaderComponent={
+            <>
+              {/* Executive Net Worth Card */}
+              <SummaryHeader
+                accounts={accounts}
+                cards={cards}
+                baseCurrency={baseCurrency}
+              />
 
-          {/* Quick Stats Grid (This Month) */}
-          <View style={styles.statsGrid}>
-            <View style={styles.statBox}>
-              <View style={styles.statHeader}>
-                <ArrowDownRight size={13} color={CozyTheme.expense} />
-                <Text style={styles.statLabel}>Month Spend</Text>
+              {/* Quick Stats Grid (This Month) */}
+              <View style={styles.statsGrid}>
+                <View style={styles.statBox}>
+                  <View style={styles.statHeader}>
+                    <ArrowDownRight size={13} color={CozyTheme.expense} />
+                    <Text style={styles.statLabel}>Month Spend</Text>
+                  </View>
+                  <Text style={styles.statAmountExpense} numberOfLines={1}>
+                    {formatMoney(monthExpenseCents, baseCurrency)}
+                  </Text>
+                </View>
+
+                <View style={styles.statBox}>
+                  <View style={styles.statHeader}>
+                    <ArrowUpRight size={13} color={CozyTheme.income} />
+                    <Text style={styles.statLabel}>Month Income</Text>
+                  </View>
+                  <Text style={styles.statAmountIncome} numberOfLines={1}>
+                    {formatMoney(monthIncomeCents, baseCurrency)}
+                  </Text>
+                </View>
               </View>
-              <Text style={styles.statAmountExpense} numberOfLines={1}>
-                {formatMoney(monthExpenseCents, baseCurrency)}
-              </Text>
-            </View>
 
-            <View style={styles.statBox}>
-              <View style={styles.statHeader}>
-                <ArrowUpRight size={13} color={CozyTheme.income} />
-                <Text style={styles.statLabel}>Month Income</Text>
+              {/* Accounts & Cards Hub */}
+              <CardDeck
+                accounts={accounts}
+                cards={cards}
+                onPressEntity={(entity) => setSelectedEntity(entity)}
+                onAddPress={() => setAddEntityVisible(true)}
+              />
+
+              {/* Compact Search & Filter Bar */}
+              <FilterSearchBar
+                searchQuery={searchQuery}
+                onSearchChange={setSearchQuery}
+                dateFilter={dateFilter}
+                onDateFilterChange={setDateFilter}
+                selectedCategoryId={selectedCategoryId}
+                onCategoryChange={setSelectedCategoryId}
+                categories={categories}
+                totalResults={filteredTransactions.length}
+                totalEntries={transactions.length}
+              />
+
+              {/* Ledger Section Header */}
+              <View style={styles.feedHeaderRow}>
+                <View style={styles.feedTitleGroup}>
+                  <History size={14} color={CozyTheme.textSecondary} />
+                  <Text style={styles.feedTitle}>RECENT ACTIVITY</Text>
+                </View>
+                <Text style={styles.transactionCountText}>
+                  {filteredTransactions.length} {filteredTransactions.length === 1 ? 'entry' : 'entries'}
+                </Text>
               </View>
-              <Text style={styles.statAmountIncome} numberOfLines={1}>
-                {formatMoney(monthIncomeCents, baseCurrency)}
-              </Text>
-            </View>
-          </View>
-
-          {/* Accounts & Cards Hub */}
-          <CardDeck
-            accounts={accounts}
-            cards={cards}
-            onPressEntity={(entity) => setSelectedEntity(entity)}
-            onAddPress={() => setAddEntityVisible(true)}
-          />
-
-          {/* Compact Search & Filter Bar */}
-          <FilterSearchBar
-            searchQuery={searchQuery}
-            onSearchChange={setSearchQuery}
-            dateFilter={dateFilter}
-            onDateFilterChange={setDateFilter}
-            selectedCategoryId={selectedCategoryId}
-            onCategoryChange={setSelectedCategoryId}
-            categories={categories}
-            totalResults={filteredTransactions.length}
-            totalEntries={transactions.length}
-          />
-
-          {/* Ledger Section Header */}
-          <View style={styles.feedHeaderRow}>
-            <View style={styles.feedTitleGroup}>
-              <History size={14} color={CozyTheme.textSecondary} />
-              <Text style={styles.feedTitle}>RECENT ACTIVITY</Text>
-            </View>
-            <Text style={styles.transactionCountText}>
-              {filteredTransactions.length} {filteredTransactions.length === 1 ? 'entry' : 'entries'}
-            </Text>
-          </View>
-
-          {/* Transaction List / Clean Empty State */}
-          <View style={styles.transactionsList}>
-            {filteredTransactions.length === 0 ? (
+            </>
+          }
+          ListEmptyComponent={
+            <View style={{ paddingHorizontal: 16 }}>
               <View style={styles.emptyContainer}>
                 <View style={styles.emptyIconCircle}>
                   <ShieldCheck size={22} color={CozyTheme.textSecondary} />
@@ -477,21 +495,21 @@ function MainAppContent() {
                   </TouchableOpacity>
                 )}
               </View>
-            ) : (
-              filteredTransactions.map((tx) => (
-                <TransactionItem
-                  key={tx.id}
-                  transaction={tx}
-                  accounts={accounts}
-                  cards={cards}
-                  categories={categories}
-                  baseCurrency={baseCurrency}
-                  onDelete={handleDeleteTransaction}
-                />
-              ))
-            )}
-          </View>
-        </ScrollView>
+            </View>
+          }
+          renderItem={({ item: tx }) => (
+            <View style={{ paddingHorizontal: 16 }}>
+              <TransactionItem
+                transaction={tx}
+                accounts={accounts}
+                cards={cards}
+                categories={categories}
+                baseCurrency={baseCurrency}
+                onDelete={handleDeleteTransaction}
+              />
+            </View>
+          )}
+        />
       )}
 
       {/* TAB 2: BUDGETS & RADAR */}

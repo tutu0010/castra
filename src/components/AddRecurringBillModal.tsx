@@ -12,6 +12,7 @@ import { X, Calendar, Check, Repeat, CreditCard, Landmark } from 'lucide-react-n
 import { CozyTheme } from '../theme/colors';
 import { Account, Card, Category, RecurringBill } from '../types';
 import { triggerLightHaptic, triggerSuccessHaptic } from '../utils/haptics';
+import { parseMoneyToMinorUnits, getCurrencySymbol } from '../utils/currency';
 
 interface AddRecurringBillModalProps {
   visible: boolean;
@@ -45,8 +46,8 @@ export const AddRecurringBillModal: React.FC<AddRecurringBillModalProps> = ({
 
   const handleSave = () => {
     if (!name.trim()) return;
-    const amountVal = parseFloat(amountStr.replace(/,/g, ''));
-    if (isNaN(amountVal) || amountVal <= 0) return;
+    const amount_cents = parseMoneyToMinorUnits(amountStr, baseCurrency);
+    if (amount_cents <= 0) return;
 
     triggerSuccessHaptic();
 
@@ -56,7 +57,7 @@ export const AddRecurringBillModal: React.FC<AddRecurringBillModalProps> = ({
     onSave({
       id: `rec_${Date.now()}`,
       name: name.trim(),
-      amount_cents: Math.round(amountVal * 100),
+      amount_cents,
       currency: baseCurrency,
       category_id: categoryId,
       account_id: selectedAccount ? selectedAccount.id : null,
@@ -111,10 +112,10 @@ export const AddRecurringBillModal: React.FC<AddRecurringBillModalProps> = ({
             />
           </View>
 
-          {/* Amount in INR */}
-          <Text style={styles.inputLabel}>Billing Amount (₹)</Text>
+          {/* Amount */}
+          <Text style={styles.inputLabel}>Billing Amount ({getCurrencySymbol(baseCurrency)})</Text>
           <View style={styles.inputBox}>
-            <Text style={styles.currencyPrefix}>₹</Text>
+            <Text style={styles.currencyPrefix}>{getCurrencySymbol(baseCurrency)}</Text>
             <TextInput
               style={styles.amountInput}
               placeholder="0"

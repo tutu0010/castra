@@ -11,7 +11,7 @@ import {
 import { X, Check, Trash2, PiggyBank, Target } from 'lucide-react-native';
 import { CozyTheme } from '../theme/colors';
 import { Category } from '../types';
-import { formatMoney } from '../utils/currency';
+import { formatMoney, parseMoneyToMinorUnits, getCurrencyDecimals, getCurrencySymbol } from '../utils/currency';
 import { triggerLightHaptic, triggerSuccessHaptic } from '../utils/haptics';
 
 interface SetBudgetModalProps {
@@ -41,7 +41,8 @@ export const SetBudgetModal: React.FC<SetBudgetModalProps> = ({
     triggerLightHaptic();
     setSelectedCatId(cat.id);
     if (cat.monthly_budget_cents && cat.monthly_budget_cents > 0) {
-      setBudgetInput((cat.monthly_budget_cents / 100).toString());
+      const decimals = getCurrencyDecimals(baseCurrency);
+      setBudgetInput((cat.monthly_budget_cents / Math.pow(10, decimals)).toString());
     } else {
       setBudgetInput('');
     }
@@ -50,11 +51,11 @@ export const SetBudgetModal: React.FC<SetBudgetModalProps> = ({
   const handleSave = () => {
     if (!selectedCatId) return;
     triggerSuccessHaptic();
-    const val = parseFloat(budgetInput.replace(/,/g, ''));
-    if (isNaN(val) || val <= 0) {
+    const cents = parseMoneyToMinorUnits(budgetInput, baseCurrency);
+    if (cents <= 0) {
       onSaveBudget(selectedCatId, null);
     } else {
-      onSaveBudget(selectedCatId, Math.round(val * 100));
+      onSaveBudget(selectedCatId, cents);
     }
     setBudgetInput('');
   };
@@ -138,7 +139,7 @@ export const SetBudgetModal: React.FC<SetBudgetModalProps> = ({
               </View>
 
               <View style={styles.inputContainer}>
-                <Text style={styles.currencyPrefix}>₹</Text>
+                <Text style={styles.currencyPrefix}>{getCurrencySymbol(baseCurrency)}</Text>
                 <TextInput
                   style={styles.budgetTextInput}
                   placeholder="0"
@@ -162,7 +163,9 @@ export const SetBudgetModal: React.FC<SetBudgetModalProps> = ({
                       setBudgetInput(p.toString());
                     }}
                   >
-                    <Text style={styles.presetButtonText}>₹{p.toLocaleString('en-IN')}</Text>
+                    <Text style={styles.presetButtonText}>
+                      {getCurrencySymbol(baseCurrency)}{p.toLocaleString()}
+                    </Text>
                   </TouchableOpacity>
                 ))}
               </View>
